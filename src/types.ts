@@ -1,3 +1,5 @@
+import { EpisodeRepository } from './database.js';
+
 export interface Context {
   options: {
     url?: string;
@@ -26,4 +28,5 @@ export interface Context {
     mergedFile?: string;
   };
   episodeId?: string;
+  db: EpisodeRepository;
 }
