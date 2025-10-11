@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from 'fs';
 
 export interface EpisodeRow {
   episode_id: string;
+  original_url?: string;
   normalized_url: string;
   url_hash: string;
   created_at: string;
@@ -15,6 +16,7 @@ export interface EpisodeRow {
   metadata_title?: string;
   metadata_summary?: string;
   metadata_published_at?: string;
+  metadata_related_links?: string; // JSON array of related links
   metadata_input_tokens?: number;
   metadata_output_tokens?: number;
   
@@ -30,7 +32,9 @@ export interface EpisodeRow {
   audio_chunk_count?: number;
   audio_voice_operator?: string;
   audio_voice_historian?: string;
+  audio_voice_narrator?: string;
   audio_total_duration_sec?: number;
+  audio_files?: string;
   
   merge_status: string;
   merged_audio_path?: string;
@@ -63,6 +67,7 @@ export class EpisodeRepository {
     const createTableSQL = `
       CREATE TABLE IF NOT EXISTS episodes (
         episode_id TEXT PRIMARY KEY,
+        original_url TEXT,
         normalized_url TEXT NOT NULL,
         url_hash TEXT NOT NULL UNIQUE,
         created_at TEXT NOT NULL,
@@ -74,6 +79,7 @@ export class EpisodeRepository {
         metadata_title TEXT,
         metadata_summary TEXT,
         metadata_published_at TEXT,
+        metadata_related_links TEXT,
         metadata_input_tokens INTEGER,
         metadata_output_tokens INTEGER,
 
@@ -89,6 +95,7 @@ export class EpisodeRepository {
         audio_chunk_count INTEGER,
         audio_voice_operator TEXT,
         audio_voice_historian TEXT,
+        audio_voice_narrator TEXT,
         audio_total_duration_sec REAL,
 
         merge_status TEXT NOT NULL DEFAULT 'pending',
@@ -106,6 +113,40 @@ export class EpisodeRepository {
     `;
     
     this.db.exec(createTableSQL);
+    
+    // Add new columns if they don't exist (for existing databases)
+    try {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN metadata_related_links TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    try {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN original_url TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    try {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN audio_voice_narrator TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    
+    // Add columns for new implementation
+    const newColumns = [
+      'metadata TEXT',           // JSON metadata
+      'script TEXT',             // JSON script
+      'audio_files TEXT',        // Comma-separated list of audio files
+      'merged_file TEXT',        // Path to merged audio file
+      'published_at TEXT'        // Publication timestamp
+    ];
+    
+    newColumns.forEach(column => {
+      try {
+        this.db.exec(`ALTER TABLE episodes ADD COLUMN ${column}`);
+      } catch (error) {
+        // Column already exists, ignore error
+      }
+    });
   }
 
   findByUrlHash(urlHash: string): EpisodeRow | undefined {
@@ -122,13 +163,14 @@ export class EpisodeRepository {
     const now = new Date().toISOString();
     const stmt = this.db.prepare(`
       INSERT INTO episodes (
-        episode_id, normalized_url, url_hash, created_at, updated_at,
+        episode_id, original_url, normalized_url, url_hash, created_at, updated_at,
         metadata_status, script_status, audio_status, merge_status, publish_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
       episode.episode_id,
+      episode.original_url ?? episode.normalized_url,
       episode.normalized_url,
       episode.url_hash,
       now,
@@ -162,8 +204,71 @@ export class EpisodeRepository {
     stmt.run(...values as any);
   }
 
+  resetEpisodeForRegeneration(episodeId: string): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE episodes SET 
+        metadata_status = 'pending',
+        metadata_model = NULL,
+        metadata_prompt_version = NULL,
+        metadata_title = NULL,
+        metadata_summary = NULL,
+        metadata_published_at = NULL,
+        metadata_related_links = NULL,
+        metadata_input_tokens = NULL,
+        metadata_output_tokens = NULL,
+        
+        script_status = 'pending',
+        script_model = NULL,
+        script_file_path = NULL,
+        script_segment_count = NULL,
+        script_input_tokens = NULL,
+        script_output_tokens = NULL,
+        
+        audio_status = 'pending',
+        audio_chunks_dir = NULL,
+        audio_chunk_count = NULL,
+        audio_voice_operator = NULL,
+        audio_voice_historian = NULL,
+        audio_voice_narrator = NULL,
+        audio_total_duration_sec = NULL,
+        
+        merge_status = 'pending',
+        merged_audio_path = NULL,
+        merged_audio_duration_sec = NULL,
+        merged_audio_checksum = NULL,
+        
+        publish_status = 'pending',
+        publish_feed_local_path = NULL,
+        publish_audio_remote_path = NULL,
+        publish_feed_remote_path = NULL,
+        publish_item_guid = NULL,
+        publish_at = NULL,
+        
+        updated_at = ?
+      WHERE episode_id = ?
+    `);
+    
+    stmt.run(now, episodeId);
+  }
+
+  updateEpisodeUrls(episodeId: string, originalUrl: string, normalizedUrl: string): void {
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`
+      UPDATE episodes
+      SET original_url = ?, normalized_url = ?, updated_at = ?
+      WHERE episode_id = ?
+    `);
+    
+    stmt.run(originalUrl, normalizedUrl, now, episodeId);
+  }
+
+  // Direct database access methods
+  prepare(sql: string): any {
+    return this.db.prepare(sql);
+  }
+
   close(): void {
     this.db.close();
   }
 }
-

@@ -15,7 +15,17 @@ export interface Context {
     scriptPromptTemplate?: string;
     operatorVoice: string;
     historianVoice: string;
+    narratorVoice: string;
     maxScriptChars: number;
+    spacesOrigin: string;
+    spacesFeedKey: string;
+    spacesAudioPrefix: string;
+    spacesCoverArtKey: string;
+    feedTitle: string;
+    feedDescription: string;
+    feedLink: string;
+    feedLanguage: string;
+    feedAuthor: string;
     s3cfg?: string;
     force: boolean;
     dryRun: boolean;
@@ -26,7 +36,14 @@ export interface Context {
     scriptFile?: string;
     chunksDir?: string;
     mergedFile?: string;
+    feedFile?: string;
   };
   episodeId?: string;
+  url: string;
   db: EpisodeRepository;
+}
+
+export interface ScriptDialogue {
+  persona: string;
+  text: string;
 }

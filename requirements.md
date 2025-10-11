@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS episodes (
   metadata_title TEXT,
   metadata_summary TEXT,
   metadata_published_at TEXT,
+  metadata_related_links TEXT,
   metadata_input_tokens INTEGER,
   metadata_output_tokens INTEGER,
 
