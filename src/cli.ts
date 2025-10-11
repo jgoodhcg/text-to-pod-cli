@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
+import { buildContext } from './context.js';
+import { runPipeline } from './runner.js';
 
 const program = new Command();
 
@@ -26,33 +28,16 @@ program
   .option('--max-script-chars <number>', 'Maximum characters per script chunk', '900')
   .option('--s3cfg <path>', 'Path to s3cmd config file')
   .option('--force', 'Force creation even if URL hash already exists')
-  .option('--dry-run', 'Skip actual uploads/publishing')
-  .action((options) => {
-    console.log('CLI options parsed:', options);
-    
-    if (options.runStage) {
-      switch (options.runStage) {
-        case 'metadata':
-          console.log('Processed metadata stage');
-          break;
-        case 'script':
-          console.log('Processed script stage');
-          break;
-        case 'audio':
-          console.log('Processed audio stage');
-          break;
-        case 'merge':
-          console.log('Processed merge stage');
-          break;
-        case 'publish':
-          console.log('Processed publish stage');
-          break;
-        default:
-          console.log(`Unknown stage: ${options.runStage}`);
-      }
-    } else {
-      console.log(`Starting from stage: ${options.startStage}`);
-      console.log('Would run all stages from start to publish');
+  .option('--dry-run', 'Skip all external operations (OpenAI API, ffmpeg, s3cmd)')
+  .option('--no-publish', 'Run everything except final upload to DigitalOcean Spaces')
+  .option('--publish', 'Enable final upload to DigitalOcean Spaces (default)')
+  .action(async (options) => {
+    try {
+      const context = buildContext(options);
+      await runPipeline(context);
+    } catch (error) {
+      console.error('Error:', error instanceof Error ? error.message : String(error));
+      process.exit(1);
     }
   });
 

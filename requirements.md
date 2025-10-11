@@ -171,7 +171,8 @@ Supported options (long form canonical):
 - `--max-script-chars <int>`
 - `--s3cfg <path>`
 - `--force`
-- `--dry-run`
+- `--dry-run` (skip all external operations - OpenAI API, ffmpeg, s3cmd)
+- `--no-publish` (run everything except final upload to DigitalOcean Spaces)
 - `--help`, `--version`
 
 CLI behavior:
