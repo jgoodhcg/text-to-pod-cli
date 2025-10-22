@@ -17,6 +17,8 @@ export interface Context {
     historianVoice: string;
     narratorVoice: string;
     maxScriptChars: number;
+    introBumper?: string;
+    outroBumper?: string;
     spacesOrigin: string;
     spacesFeedKey: string;
     spacesAudioPrefix: string;
@@ -37,6 +39,8 @@ export interface Context {
     chunksDir?: string;
     mergedFile?: string;
     feedFile?: string;
+    introBumper?: string;
+    outroBumper?: string;
   };
   episodeId?: string;
   url: string;

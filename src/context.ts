@@ -2,7 +2,7 @@ import type { Context } from './types.js';
 import { EpisodeRepository } from './database.js';
 import { normalizeUrl, generateUrlHash, generateEpisodeId } from './utils.js';
 import { CONFIG } from './config.js';
-import { join } from 'path';
+import { join, resolve } from 'path';
 
 export function buildContext(options: any): Context {
   const context: any = {
@@ -22,6 +22,8 @@ export function buildContext(options: any): Context {
       historianVoice: options.historianVoice || CONFIG.DEFAULT_HISTORIAN_VOICE,
       narratorVoice: options.narratorVoice || CONFIG.DEFAULT_NARRATOR_VOICE,
       maxScriptChars: parseInt(options.maxScriptChars) || CONFIG.DEFAULT_MAX_SCRIPT_CHARS,
+      introBumper: options.introBumper ?? CONFIG.DEFAULT_INTRO_BUMPER,
+      outroBumper: options.outroBumper ?? CONFIG.DEFAULT_OUTRO_BUMPER,
       spacesOrigin: options.spacesOrigin || CONFIG.DEFAULT_SPACES_ORIGIN,
       spacesFeedKey: options.spacesFeedKey || CONFIG.DEFAULT_SPACES_FEED_KEY,
       spacesAudioPrefix: options.spacesAudioPrefix || CONFIG.DEFAULT_SPACES_AUDIO_PREFIX,
@@ -38,6 +40,14 @@ export function buildContext(options: any): Context {
     },
     paths: {},
   };
+
+  if (context.options.introBumper) {
+    context.paths.introBumper = resolve(process.cwd(), context.options.introBumper);
+  }
+
+  if (context.options.outroBumper) {
+    context.paths.outroBumper = resolve(process.cwd(), context.options.outroBumper);
+  }
 
   // Initialize database connection
   const dbPath = join(process.cwd(), CONFIG.DATABASE_PATH);

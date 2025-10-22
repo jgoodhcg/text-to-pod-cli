@@ -124,7 +124,7 @@ export function extractJsonArray(raw: string): string | undefined {
   }
 
   const valid = arrays.find(array => looksLikeDialogueArray(array));
-  return valid ?? arrays[0];
+  return valid;
 }
 
 export function sanitizeJsonText(raw: string): string {
@@ -233,12 +233,14 @@ function extractJsonStructure(raw: string, opening: '{' | '[', closing: '}' | ']
 }
 
 function looksLikeDialogueArray(raw: string): boolean {
-  const preview = raw.trim().slice(0, 200);
-  if (!preview.startsWith('[')) return false;
-  const objectMatch = preview.match(/\{[^\}]*\}/);
-  if (!objectMatch) return false;
+  const trimmed = raw.trim();
+  if (!trimmed.startsWith('[')) return false;
+
+  const firstObject = extractJsonStructure(trimmed, '{', '}');
+  if (!firstObject) return false;
+
   try {
-    const candidate = JSON.parse(`[${objectMatch[0]}]`);
+    const candidate = JSON.parse(`[${firstObject}]`);
     if (!Array.isArray(candidate) || !candidate.length) {
       return false;
     }

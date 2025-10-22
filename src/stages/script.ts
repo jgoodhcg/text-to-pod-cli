@@ -87,6 +87,7 @@ export async function runScript(context: Context): Promise<void> {
 
     const jsonContentRaw = extractJsonArray(finalContent);
     if (!jsonContentRaw) {
+      console.error('[script] Could not find JSON array. Full response follows:\n', finalContent);
       throw new Error('Failed to locate JSON array in script response');
     }
 
@@ -115,21 +116,6 @@ export async function runScript(context: Context): Promise<void> {
       }
       if (entry.persona !== CONFIG.PERSONAS.OPERATOR && entry.persona !== CONFIG.PERSONAS.HISTORIAN && entry.persona !== CONFIG.PERSONAS.NARRATOR) {
         throw new Error(`Invalid persona: ${entry.persona}. Must be OPERATOR, HISTORIAN, or NARRATOR`);
-      }
-    }
-
-    // Check for persona alternation issues
-    let consecutiveCount = 0;
-    let lastPersona = '';
-    for (const entry of script) {
-      if (entry.persona === lastPersona) {
-        consecutiveCount++;
-        if (consecutiveCount >= 2) {
-          console.warn('[script] Warning: Multiple consecutive lines from same persona');
-        }
-      } else {
-        consecutiveCount = 0;
-        lastPersona = entry.persona;
       }
     }
 

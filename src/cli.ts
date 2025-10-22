@@ -26,6 +26,8 @@ program
   .option('--operator-voice <voice>', 'OpenAI TTS voice for operator')
   .option('--historian-voice <voice>', 'OpenAI TTS voice for historian')
   .option('--narrator-voice <voice>', 'OpenAI TTS voice for narrator')
+  .option('--intro-bumper <path>', 'Path to intro bumper audio (MP3)')
+  .option('--outro-bumper <path>', 'Path to outro bumper audio (MP3)')
   .option('--max-script-chars <number>', 'Maximum characters per script chunk')
   .option('--spaces-origin <url>', 'Base URL for DigitalOcean Spaces feed host')
   .option('--spaces-feed-key <path>', 'Key/path to the RSS feed within Spaces')

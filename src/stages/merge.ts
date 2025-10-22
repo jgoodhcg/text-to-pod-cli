@@ -23,8 +23,12 @@ export async function runMerge(context: Context): Promise<void> {
   }
 
   if (episode.merge_status === CONFIG.STAGE_STATUS.COMPLETED) {
-    console.log('[merge] Stage already completed, skipping');
-    return;
+    if (context.options.force) {
+      console.log('[merge] Stage previously completed, rerunning due to --force');
+    } else {
+      console.log('[merge] Stage already completed, skipping');
+      return;
+    }
   }
 
   if (episode.audio_status !== CONFIG.STAGE_STATUS.COMPLETED) {
@@ -38,9 +42,13 @@ export async function runMerge(context: Context): Promise<void> {
 
   console.log('[merge] Chunk files to merge:', chunkList.length);
 
+  const segmentsToMerge = buildMergeFileList(context, chunkList);
+
+  console.log('[merge] Total segments (including bumpers):', segmentsToMerge.length);
+
   if (context.options.dryRun) {
-    chunkList.forEach((chunk, index) => {
-      console.log(`[merge] Dry run: would include chunk ${index + 1}: ${resolve(chunk)}`);
+    segmentsToMerge.forEach((segment, index) => {
+      console.log(`[merge] Dry run: would include segment ${index + 1}: ${segment}`);
     });
     return;
   }
@@ -48,9 +56,8 @@ export async function runMerge(context: Context): Promise<void> {
   const mergedOutputPath = resolve(context.paths.mergedFile!);
   ensureDirectory(dirname(mergedOutputPath));
 
-  const absoluteChunks = chunkList.map(chunk => resolve(chunk));
   const concatFilePath = resolve(context.paths.chunksDir!, 'concat.txt');
-  const concatFileContents = absoluteChunks
+  const concatFileContents = segmentsToMerge
     .map(chunkPath => `file '${chunkPath.replace(/'/g, `'\\''`)}'`)
     .join('\n');
 
@@ -117,6 +124,34 @@ function resolveChunkPaths(context: Context, episode: EpisodeRow): string[] {
   return existingChunks;
 }
 
+function buildMergeFileList(context: Context, chunkFiles: string[]): string[] {
+  const segments: string[] = [];
+
+  if (context.options.introBumper) {
+    const introPath = context.paths.introBumper;
+    if (introPath && existsSync(introPath)) {
+      console.log('[merge] Including intro bumper:', introPath);
+      segments.push(introPath);
+    } else {
+      console.warn('[merge] Intro bumper not found, skipping:', introPath ?? context.options.introBumper);
+    }
+  }
+
+  segments.push(...chunkFiles);
+
+  if (context.options.outroBumper) {
+    const outroPath = context.paths.outroBumper;
+    if (outroPath && existsSync(outroPath)) {
+      console.log('[merge] Including outro bumper:', outroPath);
+      segments.push(outroPath);
+    } else {
+      console.warn('[merge] Outro bumper not found, skipping:', outroPath ?? context.options.outroBumper);
+    }
+  }
+
+  return segments;
+}
+
 function ensureDirectory(dirPath: string): void {
   if (!existsSync(dirPath)) {
     mkdirSync(dirPath, { recursive: true });
@@ -130,7 +165,10 @@ function runFfmpegConcat(listFile: string, outputFile: string): Promise<void> {
       '-f', 'concat',
       '-safe', '0',
       '-i', listFile,
-      '-c', 'copy',
+      '-ar', '24000',
+      '-ac', '1',
+      '-c:a', 'libmp3lame',
+      '-b:a', '128k',
       outputFile
     ], {
       stdio: ['ignore', 'inherit', 'inherit']

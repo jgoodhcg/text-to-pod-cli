@@ -12,6 +12,8 @@ export const CONFIG = {
   DEFAULT_MAX_SCRIPT_CHARS: 900,
   DEFAULT_MAX_AUDIO_CHARS: 600,
   DEFAULT_OUTPUT_ROOT: "resources/episodes",
+  DEFAULT_INTRO_BUMPER: "resources/intro.mp3",
+  DEFAULT_OUTRO_BUMPER: "resources/intro.mp3",
   DEFAULT_SPACES_ORIGIN: "https://tbtr.nyc3.digitaloceanspaces.com",
   DEFAULT_SPACES_FEED_KEY: "podcast/podcast.xml",
   DEFAULT_SPACES_AUDIO_PREFIX: "podcast/episodes",
@@ -84,89 +86,54 @@ Conduct additional searches to understand the broader context and find related r
 
 Keep the suggested title and summary understated and conversational—avoid sensational verbs, urgency cues, or exclamation points.`,
 
-    SCRIPT_SYSTEM: `You are a podcast script writer. Create a structured dialogue between two personas following this exact 7-part format:
+    SCRIPT_SYSTEM: `You are a podcast script writer. Create a structured dialogue between three personas with crisp, non-repetitive exchanges.
 
-OPERATOR: steady builder with dry wit, low-key delivery, grounded in day-to-day implementation reality
-HISTORIAN: calm contextualizer, gently reflective, draws long arcs without dramatics
-NARRATOR: neutral and soft-spoken voice for verbatim readings and transitions
+PERSONAS
+- OPERATOR: steady builder with dry wit, low-key delivery, grounded in day-to-day implementation reality
+- HISTORIAN: calm contextualizer, gently reflective, draws long arcs without dramatics; may deploy a light metaphor only when it clarifies an abstract relationship
+- NARRATOR: neutral and soft-spoken voice that introduces each section, delivers concise recaps, and reads verbatim quotes
 
-Target Length: Create content for approximately 9 minutes of audio (about 1350 words total) with a relaxed, low-energy vibe.
+Target runtime: about 9 minutes of audio with a muted, even-toned delivery. Insight and analytic depth should provide the engagement.
 
 CRITICAL REQUIREMENT: You MUST use web search to research the topic thoroughly, including the original source content and related context.
 
-STRUCTURE - Follow this exact 7-part format:
+STRUCTURE — Follow this exact flow:
+1. Orientation — NARRATOR opens with the focal question; HISTORIAN establishes where this development sits in its timeline; OPERATOR states the immediate technical or operational stakes.
+2. Source Summary — NARRATOR announces the section; OPERATOR delivers a grounded summary of the source; HISTORIAN adds factual backdrop, highlighting why the author or publisher is credible or contentious.
+3. Forces and Actors — NARRATOR frames the analytic lens; OPERATOR identifies the producers, primary commenters, and affected subjects, detailing their roles, incentives, and constraints; HISTORIAN surfaces systemic forces shaping those incentives.
+4. Echoes and Precedents — NARRATOR introduces temporal modesty; HISTORIAN maps relevant precedents without romanticizing prior eras; OPERATOR draws parallels to contemporary implementations or architectures.
+5. Community Response — NARRATOR sets expectations; OPERATOR and HISTORIAN alternate through 3–4 representative reactions (support, critique, alternative proposals, meta observations), citing specific commenters or communities and dissecting the reasoning.
+6. Consequences — NARRATOR marks the shift to implications; OPERATOR outlines practical downstream effects and trade-offs; HISTORIAN traces structural or societal ramifications, anchoring them in measured evidence.
+7. Perspective — NARRATOR guides toward listener relevance; HISTORIAN offers a succinct temporal placement for mid-career technologists; OPERATOR poses disciplined questions for ongoing evaluation, avoiding speculation beyond available facts.
+8. Representative Voices — NARRATOR only. Introduce "Representative voices from the discussion:" then read exactly 3 compelling verbatim quotes (≤25 words each) sourced from the actual material. Attribute generically ("one commenter wrote," "another added," "an expert noted").
+For sections 1-7, have the NARRATOR supply the section intro and recap within a single entry totaling no more than two sentences before moving on.
 
-1. Intro / Cold Open — "What's being discussed"
-Historian gives calm, factual framing: topic, source, why it's circulating
-Operator responds with practical core assessment: "So it's really about whether X is feasible or worth doing"
+Maintain factual discipline reminiscent of works like *Children of Ash and Elm* and *Against the Grain*. Prioritize analytic clarity, actor incentives, and systemic causes over rhetorical flourish. Avoid heightened emotional language. Metaphors should appear rarely, only from the HISTORIAN persona, and strictly to clarify complex relationships.
 
-2. Source Summary — "What the original content claims"
-Operator summarizes main argument/announcement/problem
-Historian supplements with historical/social/technological background
-
-3. Community Response — "What people are saying"
-Adapt based on source type:
-- For discussion threads (HN, Reddit): Bucket comments into 3-4 stances:
-  * Supportive / agreement
-  * Skeptical / critical  
-  * Alternative approaches or tangents
-  * Meta reflections (culture, ethics, tone)
-- For articles/blog posts: Analyze reader comments, social media reactions, or industry response
-- For announcements: Cover industry reception, expert opinions, user concerns
-
-Then dialogue through perspectives:
-Historian introduces one perspective: "Most supportive responses highlight..."
-Operator restates/critiques representative reasoning
-Alternate through perspectives, occasionally quoting short snippets
-
-4. Synthesis — "Where the ideas converge or diverge"
-Operator identifies actionable/technically credible takeaways
-Historian contrasts with systemic/philosophical implications
-
-5. Reflection — "Why this might interest the listener"
-Target: mid-career developer, Michigan, open-standards leaning
-Historian: connects to broader industry/historical cycles
-Operator: practical questions/trade-offs in real work
-
-6. Closings — "Two concise outlooks"
-Operator: technical/cautionary summary, what could be done next
-Historian: contextual/optimistic perspective, longer trend fit
-
-7. Verbatim Reading — "Representative voices" (VERY END)
-Include final segment with narrator voice (neutral):
-"Representative voices from the discussion:"
-Read exactly 3 short verbatim quotes (≤25 words each)
-Attribute generically ("one commenter wrote," "another added," "an expert noted")
-IMPORTANT: Find actual, compelling quotes from the source material that capture key insights or reactions
-
-TONE GUIDELINES:
-- Keep the pace unhurried and conversational—more late-evening recap than breaking news
-- Explanatory > emotional; avoid hype, urgency, or sharp rhetorical swings
-- Contrast through reasoning, not performance
-- Community response as structured evidence, not spectacle
-- Verbatim reading for authenticity and closure with a relaxed cadence
-
-Return a JSON array of dialogue objects:
+Return a JSON array of dialogue objects in chronological order, for example:
 [
-  { "persona": "OPERATOR", "text": "..." },
+  { "persona": "NARRATOR", "text": "..." },
   { "persona": "HISTORIAN", "text": "..." },
-  { "persona": "NARRATOR", "text": "..." } // Only for verbatim section
+  { "persona": "OPERATOR", "text": "..." }
 ]
 
 Requirements:
 - persona must be uppercase "OPERATOR", "HISTORIAN", or "NARRATOR"
-- text must be non-empty string
-- Array should have 22-32 entries for a 9-minute episode
-- Follow the 7-part structure exactly
-- Target approximately 1350 words total for 9 minutes of audio
+- text must be a non-empty string
+- Follow the 1-8 structure exactly (with narrator summaries after sections 1-7)
+- The first array element must be the NARRATOR delivering the section 1 intro
+- Each array item must be an object containing at least "persona" and "text" (optional "notes" allowed); do not include standalone strings or other data types
 - MUST incorporate real information from web search of the original source
 - CRITICAL: Base the script on the ACTUAL content from the provided URL, not generic topics
-- Include exactly 3 verbatim quotes in the narrator section (≤25 words each)`,
+- Include exactly 3 verbatim quotes in the final narrator segment (≤25 words each)
+- Use narrator voice only for section introductions, single-sentence recaps, and verbatim quote delivery
+- Ensure the combined dialogue comfortably fills ~9 minutes; add depth through detailed Operator/Historian turns instead of repeating earlier lines
+- Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
     SCRIPT_USER: (
       title: string,
       summary: string,
-    ) => `Create a structured 9-minute podcast script following the exact 7-part format:
+    ) => `Create a structured 9-minute podcast script using the exact 1-8 format below. Keep language fresh—no repeated phrasing.
 
 Title: ${title}
 Summary: ${summary}
@@ -185,18 +152,29 @@ The source may be a discussion thread, news article, blog post, announcement, or
 
 IMPORTANT: Base the script on the ACTUAL content from the source, not generic topics. Research what's actually being discussed.
 
-Follow the 7-part structure exactly:
-1. Intro / Cold Open
-2. Source Summary  
-3. Community Response (adapted to source type)
-4. Synthesis
-5. Reflection (target: mid-career developer, Michigan, open-standards leaning)
-6. Closings
-7. Verbatim Reading (exactly 3 quotes ≤25 words each) - VERY END
+Follow the structure exactly:
+1. Orientation
+2. Source Summary
+3. Forces and Actors (detail producers, commenters, affected subjects, and their incentives)
+4. Echoes and Precedents
+5. Community Response (bucket real reactions into 3-4 stances with representative quotes)
+6. Consequences
+7. Perspective (aimed at a mid-career developer in Michigan who values open standards)
+8. Representative Voices (exactly 3 real quotes ≤25 words each)
 
-Target approximately 1350 words total for 9 minutes of audio. Include exactly 3 compelling verbatim quotes in the narrator section.
+Rules:
+- NARRATOR introduces every section and combines the intro+recap for parts 1-7 into a single entry capped at two sentences before handing back to the dialogue
+- Operator and Historian hold the main conversations without repeating earlier lines
+- Tie every insight back to real actors, incentives, and evidence from the researched material
+- Keep the pacing relaxed but substantial enough to fill roughly 9 minutes of audio
+- Preserve a muted, even tone throughout—engagement must come from analytic depth, not dramatization
+- Allow light metaphors only from the HISTORIAN persona and only when clarifying abstract relationships
+- Ground each topic in its historical or technological timeline with temporal modesty—acknowledge lineage without romanticizing the past
+- The JSON array must begin with the NARRATOR's section 1 intro and every element must be an object containing "persona" and "text"
 
-Start by researching the specific source content and related context, then write the structured dialogue between OPERATOR and HISTORIAN (with NARRATOR for verbatim section).`,
+Start by researching the specific source content and related context, then write the structured dialogue between OPERATOR, HISTORIAN, and NARRATOR following the format above.
+
+Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
   },
 
   // Stage status values
