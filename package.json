@@ -2,10 +2,12 @@
   "name": "text-to-pod-cli",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/cli.js",
   "scripts": {
-    "start": "tsx src/cli.ts",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
     "build": "tsc",
+    "clean": "rm -rf dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
