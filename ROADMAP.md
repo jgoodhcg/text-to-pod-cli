@@ -1,34 +1,40 @@
 # Text-to-Pod CLI Roadmap
 
-## Immediate Improvements
+## Completed Improvements
 
-### Remove Token Monitoring
-- **Issue**: Token monitoring in script generation shows 0 and doesn't add value
-- **Action**: Remove all token tracking from script generation
-- **Files to update**:
-  - `src/stages/script.ts` - Remove token parameters from function signatures and return values
-  - `src/database.ts` - Remove token columns from schema (keep metadata tokens for now)
-  - `src/stages/audio.ts` - Remove token display from CLI output
-- **Priority**: Medium - Code cleanup, no functional impact
+### ✅ Remove Token Monitoring
+- **Completed**: Removed all token tracking from script generation and metadata stages
+- **Changes**: 
+  - Removed token console output from script and metadata stages
+  - Removed token database writes while preserving schema columns
+  - Fixed unused variable warnings
+- **Impact**: Cleaner codebase, no functional impact
 
-### Fix Script Generation Token Display
-- **Issue**: CLI shows 0 for token usage during script generation
-- **Root cause**: Token extraction from OpenAI API response may be broken
-- **Decision**: Remove token monitoring entirely rather than fix (see above)
+### ✅ Adjust Audio Tone and Energy
+- **Completed**: Implemented scholarly tone using OpenAI TTS instructions parameter
+- **Changes**: 
+  - Added instructions parameter for measured, contemplative delivery
+  - Maintained existing voice (ash) and natural pacing
+  - Preserved original script content
+- **Impact**: Audio now has appropriate scholarly tone instead of "shouting headlines"
 
-### Adjust Audio Tone and Energy
-- **Issue**: Current audio reads like someone shouting headlines, too high energy
-- **Goal**: Lower energy, more measured and contemplative delivery
-- **Potential solutions**:
-  - Add SSML markup to control speech rate, pitch, and volume
-  - Experiment with OpenAI TTS parameters for more natural pacing
-  - Add post-processing to reduce overall volume and normalize levels
-  - Test different voices that naturally have lower energy delivery
-- **Files to investigate**:
-  - `src/stages/audio.ts` - TTS API calls and parameters
-  - Audio processing pipeline in merge stage
-- **Priority**: High - Critical for user experience and matching scholarly tone
+## Future Enhancements
+
+### Podcast Landing Page
+- **Goal**: Create a web presence for the podcast
+- **Options to consider**:
+  - Generate static HTML from RSS feed data
+  - Deploy to podcast platforms (Apple Podcasts, Spotify, etc.)
+  - Create simple episode archive with search functionality
+- **Priority**: Medium - Improves discoverability and user experience
+
+### Additional Features
+- Episode management and editing tools
+- Batch processing for multiple URLs
+- Custom voice configuration per episode type
+- Audio post-processing and enhancement
+- Analytics and usage tracking
 
 ---
 
-*This roadmap focuses on essential code cleanup and audio quality improvements. The multi-stage script generation system with enhanced descriptions is now complete and functional.*
+*The core text-to-podcast pipeline is now complete with improved audio quality and cleaner codebase. Ready for production use and future enhancements.*

@@ -335,22 +335,22 @@ export async function runScript(context: Context): Promise<void> {
 
   try {
     // Stage 1: Generate outline
-    const { outline, inputTokens: outlineInputTokens, outputTokens: outlineOutputTokens } = 
+    const { outline } = 
       await generateOutline(openai, title, summary, context.options.scriptOutlineModel);
 
     // Stage 2: Generate content
-    const { draft, inputTokens: contentInputTokens, outputTokens: contentOutputTokens } = 
+    const { draft } = 
       await generateContent(openai, outline, context.options.scriptContentModel);
 
     // Stage 3: Refine script
-    const { refined, inputTokens: refinementInputTokens, outputTokens: refinementOutputTokens } = 
+    const { refined } = 
       await refineScript(openai, draft, outline, context.options.scriptRefinementModel);
 
     // Stage 4: Final validation
     validateScript(refined);
 
     // Stage 5: Extract description notes
-    const { notes, inputTokens: descriptionInputTokens, outputTokens: descriptionOutputTokens } = 
+    const { notes } = 
       await extractDescriptionNotes(openai, refined, context.options.scriptDescriptionModel);
 
     // Save final script to file

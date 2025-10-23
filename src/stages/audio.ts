@@ -103,7 +103,8 @@ export async function runAudio(context: Context): Promise<void> {
       const response = await openai.audio.speech.create({
         model: 'gpt-4o-mini-tts',
         voice,
-        input: chunkText
+        input: chunkText,
+        instructions: 'Speak in a measured, contemplative scholarly tone with lower energy. Avoid dramatic intonation or excitement. Use thoughtful pacing and calm delivery suitable for academic analysis.'
       });
 
       const buffer = Buffer.from(await response.arrayBuffer());
