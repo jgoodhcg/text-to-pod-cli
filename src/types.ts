@@ -9,6 +9,9 @@ export interface Context {
     runStage?: string;
     metadataModel: string;
     scriptModel: string;
+    scriptOutlineModel: string;
+    scriptContentModel: string;
+    scriptRefinementModel: string;
     metadataSystemPrompt?: string;
     metadataPromptTemplate?: string;
     scriptSystemPrompt?: string;

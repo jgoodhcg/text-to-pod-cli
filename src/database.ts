@@ -27,6 +27,16 @@ export interface EpisodeRow {
   script_input_tokens?: number;
   script_output_tokens?: number;
   
+  // Multi-stage script generation
+  script_outline_model?: string;
+  script_outline_tokens?: number;
+  script_outline_content?: string;
+  script_content_model?: string;
+  script_content_tokens?: number;
+  script_content_draft?: string;
+  script_refinement_model?: string;
+  script_refinement_tokens?: number;
+  
   audio_status: string;
   audio_chunks_dir?: string;
   audio_chunk_count?: number;
@@ -90,6 +100,16 @@ export class EpisodeRepository {
         script_segment_count INTEGER,
         script_input_tokens INTEGER,
         script_output_tokens INTEGER,
+        
+        -- Multi-stage script generation
+        script_outline_model TEXT,
+        script_outline_tokens INTEGER,
+        script_outline_content TEXT,
+        script_content_model TEXT,
+        script_content_tokens INTEGER,
+        script_content_draft TEXT,
+        script_refinement_model TEXT,
+        script_refinement_tokens INTEGER,
 
         audio_status TEXT NOT NULL DEFAULT 'pending',
         audio_chunks_dir TEXT,
@@ -146,6 +166,26 @@ export class EpisodeRepository {
       this.db.exec('ALTER TABLE episodes ADD COLUMN audio_voice_scholar TEXT');
     } catch (error) {
       // Column already exists, ignore error
+    }
+    
+    // Add multi-stage script generation columns
+    const scriptColumns = [
+      'script_outline_model TEXT',
+      'script_outline_tokens INTEGER',
+      'script_outline_content TEXT',
+      'script_content_model TEXT', 
+      'script_content_tokens INTEGER',
+      'script_content_draft TEXT',
+      'script_refinement_model TEXT',
+      'script_refinement_tokens INTEGER'
+    ];
+    
+    for (const column of scriptColumns) {
+      try {
+        this.db.exec(`ALTER TABLE episodes ADD COLUMN ${column}`);
+      } catch (error) {
+        // Column already exists, ignore error
+      }
     }
     
     // Add columns for new implementation
@@ -241,6 +281,15 @@ export class EpisodeRepository {
         script_segment_count = NULL,
         script_input_tokens = NULL,
         script_output_tokens = NULL,
+        
+        script_outline_model = NULL,
+        script_outline_tokens = NULL,
+        script_outline_content = NULL,
+        script_content_model = NULL,
+        script_content_tokens = NULL,
+        script_content_draft = NULL,
+        script_refinement_model = NULL,
+        script_refinement_tokens = NULL,
         
         audio_status = 'pending',
         audio_chunks_dir = NULL,
