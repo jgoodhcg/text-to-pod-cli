@@ -36,6 +36,9 @@ export interface EpisodeRow {
   script_content_draft?: string;
   script_refinement_model?: string;
   script_refinement_tokens?: number;
+  script_description_notes?: string;
+  script_description_model?: string;
+  script_description_tokens?: number;
   
   audio_status: string;
   audio_chunks_dir?: string;
@@ -110,6 +113,9 @@ export class EpisodeRepository {
         script_content_draft TEXT,
         script_refinement_model TEXT,
         script_refinement_tokens INTEGER,
+        script_description_notes TEXT,
+        script_description_model TEXT,
+        script_description_tokens INTEGER,
 
         audio_status TEXT NOT NULL DEFAULT 'pending',
         audio_chunks_dir TEXT,
@@ -181,6 +187,21 @@ export class EpisodeRepository {
     ];
     
     for (const column of scriptColumns) {
+      try {
+        this.db.exec(`ALTER TABLE episodes ADD COLUMN ${column}`);
+      } catch (error) {
+        // Column already exists, ignore error
+      }
+    }
+    
+    // Add description notes columns
+    const descriptionColumns = [
+      'script_description_notes TEXT',
+      'script_description_model TEXT',
+      'script_description_tokens INTEGER'
+    ];
+    
+    for (const column of descriptionColumns) {
       try {
         this.db.exec(`ALTER TABLE episodes ADD COLUMN ${column}`);
       } catch (error) {
@@ -290,6 +311,9 @@ export class EpisodeRepository {
         script_content_draft = NULL,
         script_refinement_model = NULL,
         script_refinement_tokens = NULL,
+        script_description_notes = NULL,
+        script_description_model = NULL,
+        script_description_tokens = NULL,
         
         audio_status = 'pending',
         audio_chunks_dir = NULL,

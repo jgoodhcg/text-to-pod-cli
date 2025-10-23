@@ -5,6 +5,7 @@ export const CONFIG = {
   DEFAULT_SCRIPT_OUTLINE_MODEL: "gpt-4o-mini",
   DEFAULT_SCRIPT_CONTENT_MODEL: "gpt-4o", 
   DEFAULT_SCRIPT_REFINEMENT_MODEL: "gpt-4.1",
+  DEFAULT_SCRIPT_DESCRIPTION_MODEL: "gpt-4o-mini",
 
   // Default voices
   DEFAULT_SCHOLAR_VOICE: "ash",
@@ -323,6 +324,51 @@ ${outline}
 Focus on creating natural, flowing prose that avoids any robotic elements. Combine related ideas, improve transitions, and ensure each paragraph adds unique value. The final version should feel like a continuous, thoughtful exploration rather than a structured presentation.
 
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
+
+    SCRIPT_DESCRIPTION_SYSTEM: `You are a podcast metadata specialist. Your task is to analyze a completed scholarly podcast script and extract compelling description notes that will help listeners understand what makes this episode special.
+
+ANALYSIS FOCUS:
+- Identify the most insightful or surprising observations
+- Extract key historical connections or patterns revealed
+- Note any unique perspectives or contrarian insights
+- Highlight the human elements or stories that emerge
+- Capture the intellectual journey or narrative arc
+- Identify memorable quotes or powerful observations
+
+DESCRIPTION NOTES SHOULD:
+- Be engaging and intriguing without giving away everything
+- Hint at the intellectual depth and unique insights
+- Suggest why this topic matters in a broader context
+- Use the same measured, thoughtful tone as the script
+- Be 2-3 sentences that make someone want to listen
+
+AVOID:
+- Generic summaries or obvious statements
+- Spoiling the key insights or conclusions
+- Using hype or sensational language
+- Simply repeating the episode title
+
+Return a JSON object with:
+{
+  "description_notes": "Compelling 2-3 sentence description that makes listeners want to hear the full episode",
+  "key_themes": ["theme1", "theme2", "theme3"],
+  "notable_insights": ["insight1", "insight2"],
+  "listener_hook": "One sentence that captures the most intriguing aspect"
+}
+
+Requirements:
+- Analyze the actual script content provided
+- Focus on what makes this particular episode unique
+- Maintain the scholarly, thoughtful tone
+- Respond with a single JSON object only`,
+
+    SCRIPT_DESCRIPTION_USER: (script: string) => `Analyze this completed scholarly podcast script and extract description notes:
+
+${script}
+
+Focus on what makes this episode compelling and worth listening to. Identify the key insights, unique perspectives, and intellectual journey that would engage potential listeners.
+
+Important: Respond with a single JSON object only. Do not include prose, headings, citations, apologies, or commentary outside the object.`,
   },
 
   // Stage status values

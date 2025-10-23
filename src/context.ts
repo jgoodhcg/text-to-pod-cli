@@ -17,6 +17,7 @@ export function buildContext(options: any): Context {
       scriptOutlineModel: options.scriptOutlineModel || CONFIG.DEFAULT_SCRIPT_OUTLINE_MODEL,
       scriptContentModel: options.scriptContentModel || CONFIG.DEFAULT_SCRIPT_CONTENT_MODEL,
       scriptRefinementModel: options.scriptRefinementModel || CONFIG.DEFAULT_SCRIPT_REFINEMENT_MODEL,
+      scriptDescriptionModel: options.scriptDescriptionModel || CONFIG.DEFAULT_SCRIPT_DESCRIPTION_MODEL,
       metadataSystemPrompt: options.metadataSystemPrompt,
       metadataPromptTemplate: options.metadataPromptTemplate,
       scriptSystemPrompt: options.scriptSystemPrompt,

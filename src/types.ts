@@ -12,6 +12,7 @@ export interface Context {
     scriptOutlineModel: string;
     scriptContentModel: string;
     scriptRefinementModel: string;
+    scriptDescriptionModel: string;
     metadataSystemPrompt?: string;
     metadataPromptTemplate?: string;
     scriptSystemPrompt?: string;

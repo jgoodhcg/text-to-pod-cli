@@ -22,6 +22,7 @@ program
   .option('--script-outline-model <model>', 'OpenAI model for script outline stage')
   .option('--script-content-model <model>', 'OpenAI model for script content stage')
   .option('--script-refinement-model <model>', 'OpenAI model for script refinement stage')
+  .option('--script-description-model <model>', 'OpenAI model for script description stage')
   .option('--metadata-system-prompt <path>', 'Path to metadata system prompt file')
   .option('--metadata-prompt-template <path>', 'Path to metadata prompt template file')
   .option('--script-system-prompt <path>', 'Path to script system prompt file')

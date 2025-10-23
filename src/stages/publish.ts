@@ -179,13 +179,29 @@ function buildRssItem(
 
   const relatedLinks = parseRelatedLinks(episode.metadata_related_links);
   const articlePublishedAtHuman = formatHumanDate(episode.metadata_published_at);
+  // Extract description notes if available
+  let descriptionNotes = '';
+  if (episode.script_description_notes) {
+    try {
+      const notes = JSON.parse(episode.script_description_notes);
+      descriptionNotes = notes.description_notes || '';
+    } catch (error) {
+      console.warn('[publish] Unable to parse script_description_notes JSON:', error);
+    }
+  }
+
   const descriptionOptions: any = {
     summary,
     originalUrl: episode.original_url || episode.normalized_url,
     relatedLinks,
+    descriptionNotes,
     models: {
       metadata: episode.metadata_model ?? null,
-      script: episode.script_model ?? null
+      script: episode.script_model ?? null,
+      script_outline: episode.script_outline_model ?? null,
+      script_content: episode.script_content_model ?? null,
+      script_refinement: episode.script_refinement_model ?? null,
+      script_description: episode.script_description_model ?? null
     },
     voices: {
       scholar: episode.audio_voice_scholar || 'Scholar voice not set',
@@ -283,12 +299,26 @@ function buildHtmlDescription(options: {
   originalUrl: string;
   articlePublishedAt?: string;
   relatedLinks: Array<{ label: string; url: string }>;
-  models: { metadata?: string | null; script?: string | null };
+  models: { 
+    metadata?: string | null; 
+    script?: string | null;
+    script_outline?: string | null;
+    script_content?: string | null;
+    script_refinement?: string | null;
+    script_description?: string | null;
+  };
   voices: { scholar: string; operator?: string; historian?: string; narrator?: string };
+  descriptionNotes?: string;
 }): string {
   const summarySection = options.summary
     ? `<p>${escapeXml(options.summary)}</p>`
     : '<p>No summary available.</p>';
+
+  const descriptionNotesSection = options.descriptionNotes
+    ? `<div class="episode-description-notes">
+       <p><em>${escapeXml(options.descriptionNotes)}</em></p>
+     </div>`
+    : '';
 
   const publishedAtLine = options.articlePublishedAt
     ? `  <p><strong>Original Publish:</strong> ${escapeXml(options.articlePublishedAt)}</p>`
@@ -307,14 +337,38 @@ function buildHtmlDescription(options: {
     '  <h3>Generation Stack</h3>',
     '  <ul>',
     `    <li><strong>Metadata Model:</strong> ${escapeXml(options.models.metadata || 'Unknown')}</li>`,
-    `    <li><strong>Script Model:</strong> ${escapeXml(options.models.script || 'Unknown')}</li>`,
+  ];
+
+  // Show multi-stage script generation if available
+  if (options.models.script_outline || options.models.script_content || options.models.script_refinement) {
+    modelsSection.push('    <li><strong>Script Generation (Multi-Stage):</strong></li>');
+    if (options.models.script_outline) {
+      modelsSection.push(`      <ul><li><em>Outline:</em> ${escapeXml(options.models.script_outline)}</li></ul>`);
+    }
+    if (options.models.script_content) {
+      modelsSection.push(`      <ul><li><em>Content:</em> ${escapeXml(options.models.script_content)}</li></ul>`);
+    }
+    if (options.models.script_refinement) {
+      modelsSection.push(`      <ul><li><em>Refinement:</em> ${escapeXml(options.models.script_refinement)}</li></ul>`);
+    }
+    if (options.models.script_description) {
+      modelsSection.push(`      <ul><li><em>Description Notes:</em> ${escapeXml(options.models.script_description)}</li></ul>`);
+    }
+  } else {
+    // Fallback for legacy single-stage script generation
+    modelsSection.push(`    <li><strong>Script Model:</strong> ${escapeXml(options.models.script || 'Unknown')}</li>`);
+  }
+
+  modelsSection.push(
     `    <li><strong>Scholar Voice:</strong> ${escapeXml(options.voices.scholar)}</li>`,
     ...(options.voices.operator ? [`    <li><strong>Operator Voice:</strong> ${escapeXml(options.voices.operator)}</li>`] : []),
     ...(options.voices.historian ? [`    <li><strong>Historian Voice:</strong> ${escapeXml(options.voices.historian)}</li>`] : []),
     ...(options.voices.narrator ? [`    <li><strong>Narrator Voice:</strong> ${escapeXml(options.voices.narrator)}</li>`] : []),
     '  </ul>',
     '</div>'
-  ].join('\n');
+  );
+
+  const modelsSectionHtml = modelsSection.join('\n');
 
   const linksSection = options.relatedLinks.length
     ? [
@@ -330,8 +384,9 @@ function buildHtmlDescription(options: {
   return [
     '<div class="episode-description">',
     summarySection,
+    descriptionNotesSection,
     sourceSection,
-    modelsSection,
+    modelsSectionHtml,
     linksSection,
     '</div>'
   ].filter(Boolean).join('\n');

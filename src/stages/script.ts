@@ -16,6 +16,13 @@ interface ScriptOutline {
   target_duration_minutes: number;
 }
 
+interface DescriptionNotes {
+  description_notes: string;
+  key_themes: string[];
+  notable_insights: string[];
+  listener_hook: string;
+}
+
 async function callOpenAIWithWebSearch(
   openai: OpenAI,
   model: string,
@@ -197,6 +204,46 @@ async function refineScript(
   return { refined, inputTokens: inputTokens || 0, outputTokens: outputTokens || 0 };
 }
 
+async function extractDescriptionNotes(
+  openai: OpenAI,
+  script: ScriptDialogue[],
+  model: string
+): Promise<{ notes: DescriptionNotes; inputTokens: number; outputTokens: number }> {
+  console.log('[script] Stage 5: Extracting description notes...');
+  
+  const scriptText = JSON.stringify(script, null, 2);
+  const { content, inputTokens, outputTokens } = await callOpenAIWithWebSearch(
+    openai,
+    model,
+    CONFIG.PROMPTS.SCRIPT_DESCRIPTION_SYSTEM,
+    CONFIG.PROMPTS.SCRIPT_DESCRIPTION_USER(scriptText)
+  );
+
+  if (!content) {
+    throw new Error('No response from OpenAI for description notes extraction');
+  }
+
+  console.log('[script] Description notes response length:', content.length);
+  
+  let notes: DescriptionNotes;
+  try {
+    // Extract JSON object (not array) for description notes
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Could not find JSON object in description notes response');
+    }
+    
+    const jsonContent = sanitizeJsonText(jsonMatch[0]);
+    notes = JSON.parse(jsonContent);
+  } catch (parseError) {
+    console.error('[script] Description notes parse error:', parseError);
+    console.error('[script] Problematic content:', content);
+    throw new Error(`Failed to parse description notes JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
+  }
+
+  return { notes, inputTokens: inputTokens || 0, outputTokens: outputTokens || 0 };
+}
+
 function validateScript(script: ScriptDialogue[]): void {
   console.log('[script] Stage 4: Final validation...');
   
@@ -241,6 +288,7 @@ export async function runScript(context: Context): Promise<void> {
   console.log('[script] Outline model:', context.options.scriptOutlineModel);
   console.log('[script] Content model:', context.options.scriptContentModel);
   console.log('[script] Refinement model:', context.options.scriptRefinementModel);
+  console.log('[script] Description model:', context.options.scriptDescriptionModel);
   console.log('[script] Dry run:', context.options.dryRun);
 
   if (!context.episodeId || !context.paths.scriptFile) {
@@ -270,6 +318,7 @@ export async function runScript(context: Context): Promise<void> {
     console.log('[script] Dry run: Stage 2: Generate content');
     console.log('[script] Dry run: Stage 3: Refine script');
     console.log('[script] Dry run: Stage 4: Validate script');
+    console.log('[script] Dry run: Stage 5: Extract description notes');
     console.log('[script] Dry run: would save script to', context.paths.scriptFile);
     return;
   }
@@ -300,12 +349,16 @@ export async function runScript(context: Context): Promise<void> {
     // Stage 4: Final validation
     validateScript(refined);
 
+    // Stage 5: Extract description notes
+    const { notes, inputTokens: descriptionInputTokens, outputTokens: descriptionOutputTokens } = 
+      await extractDescriptionNotes(openai, refined, context.options.scriptDescriptionModel);
+
     // Save final script to file
     writeFileSync(context.paths.scriptFile, JSON.stringify(refined, null, 2));
 
     // Calculate total tokens
-    const totalInputTokens = outlineInputTokens + contentInputTokens + refinementInputTokens;
-    const totalOutputTokens = outlineOutputTokens + contentOutputTokens + refinementOutputTokens;
+    const totalInputTokens = outlineInputTokens + contentInputTokens + refinementInputTokens + descriptionInputTokens;
+    const totalOutputTokens = outlineOutputTokens + contentOutputTokens + refinementOutputTokens + descriptionOutputTokens;
 
     // Update database with results
     const updates: any = {
@@ -324,6 +377,9 @@ export async function runScript(context: Context): Promise<void> {
       script_content_draft: JSON.stringify(draft, null, 2),
       script_refinement_model: context.options.scriptRefinementModel,
       script_refinement_tokens: refinementInputTokens + refinementOutputTokens,
+      script_description_notes: JSON.stringify(notes, null, 2),
+      script_description_model: context.options.scriptDescriptionModel,
+      script_description_tokens: descriptionInputTokens + descriptionOutputTokens,
     };
 
     context.db.updateStageStatus(context.episodeId, 'script', CONFIG.STAGE_STATUS.COMPLETED, updates);
