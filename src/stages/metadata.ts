@@ -78,9 +78,6 @@ export async function runMetadata(context: Context): Promise<void> {
     });
 
     console.log('[metadata] Web search performed by model');
-    if (response.usage) {
-      console.log(`[metadata] Token usage: ${response.usage.prompt_tokens} prompt, ${response.usage.completion_tokens} completion`);
-    }
 
     const finalContent = response.output_text;
     if (!finalContent) {
@@ -129,12 +126,7 @@ export async function runMetadata(context: Context): Promise<void> {
       updates.metadata_related_links = JSON.stringify(metadata.related_links);
     }
 
-    if (response.usage?.prompt_tokens !== undefined) {
-      updates.metadata_input_tokens = response.usage.prompt_tokens;
-    }
-    if (response.usage?.completion_tokens !== undefined) {
-      updates.metadata_output_tokens = response.usage.completion_tokens;
-    }
+
 
     context.db.updateStageStatus(context.episodeId, 'metadata', CONFIG.STAGE_STATUS.COMPLETED, updates);
 

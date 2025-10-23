@@ -356,37 +356,26 @@ export async function runScript(context: Context): Promise<void> {
     // Save final script to file
     writeFileSync(context.paths.scriptFile, JSON.stringify(refined, null, 2));
 
-    // Calculate total tokens
-    const totalInputTokens = outlineInputTokens + contentInputTokens + refinementInputTokens + descriptionInputTokens;
-    const totalOutputTokens = outlineOutputTokens + contentOutputTokens + refinementOutputTokens + descriptionOutputTokens;
-
     // Update database with results
     const updates: any = {
       script_model: `${context.options.scriptOutlineModel}+${context.options.scriptContentModel}+${context.options.scriptRefinementModel}`,
       script_file_path: context.paths.scriptFile,
       script_segment_count: refined.length,
-      script_input_tokens: totalInputTokens,
-      script_output_tokens: totalOutputTokens,
       
       // Multi-stage details
       script_outline_model: context.options.scriptOutlineModel,
-      script_outline_tokens: outlineInputTokens + outlineOutputTokens,
       script_outline_content: JSON.stringify(outline, null, 2),
       script_content_model: context.options.scriptContentModel,
-      script_content_tokens: contentInputTokens + contentOutputTokens,
       script_content_draft: JSON.stringify(draft, null, 2),
       script_refinement_model: context.options.scriptRefinementModel,
-      script_refinement_tokens: refinementInputTokens + refinementOutputTokens,
       script_description_notes: JSON.stringify(notes, null, 2),
       script_description_model: context.options.scriptDescriptionModel,
-      script_description_tokens: descriptionInputTokens + descriptionOutputTokens,
     };
 
     context.db.updateStageStatus(context.episodeId, 'script', CONFIG.STAGE_STATUS.COMPLETED, updates);
 
     console.log('[script] Multi-stage script generation completed successfully');
     console.log(`[script] Final script segments: ${refined.length}`);
-    console.log(`[script] Total tokens: ${totalInputTokens} input, ${totalOutputTokens} output`);
     
     const estimatedMinutes = refined.reduce((sum, entry) => sum + entry.text.split(' ').length, 0) / CONFIG.WORDS_PER_MINUTE;
     console.log(`[script] Estimated audio time: ${estimatedMinutes.toFixed(1)} minutes`);
