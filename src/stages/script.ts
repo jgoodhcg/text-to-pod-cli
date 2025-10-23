@@ -114,8 +114,8 @@ export async function runScript(context: Context): Promise<void> {
       if (!entry.persona || !entry.text) {
         throw new Error('Each script entry must have persona and text');
       }
-      if (entry.persona !== CONFIG.PERSONAS.OPERATOR && entry.persona !== CONFIG.PERSONAS.HISTORIAN && entry.persona !== CONFIG.PERSONAS.NARRATOR) {
-        throw new Error(`Invalid persona: ${entry.persona}. Must be OPERATOR, HISTORIAN, or NARRATOR`);
+      if (entry.persona !== CONFIG.PERSONAS.SCHOLAR) {
+        throw new Error(`Invalid persona: ${entry.persona}. Must be SCHOLAR`);
       }
     }
 

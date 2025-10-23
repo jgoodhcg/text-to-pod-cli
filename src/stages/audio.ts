@@ -7,8 +7,7 @@ import { CONFIG } from '../config.js';
 
 export async function runAudio(context: Context): Promise<void> {
   console.log('[audio] Running audio stage');
-  console.log('[audio] Operator voice:', context.options.operatorVoice);
-  console.log('[audio] Historian voice:', context.options.historianVoice);
+  console.log('[audio] Scholar voice:', context.options.scholarVoice);
   console.log('[audio] Dry run:', context.options.dryRun);
 
   if (!context.episodeId) {
@@ -72,12 +71,8 @@ export async function runAudio(context: Context): Promise<void> {
 
   const voiceForPersona = (persona: string): string => {
     switch (persona) {
-      case CONFIG.PERSONAS.OPERATOR:
-        return context.options.operatorVoice;
-      case CONFIG.PERSONAS.HISTORIAN:
-        return context.options.historianVoice;
-      case CONFIG.PERSONAS.NARRATOR:
-        return context.options.narratorVoice;
+      case CONFIG.PERSONAS.SCHOLAR:
+        return context.options.scholarVoice;
       default:
         throw new Error(`Unknown persona "${persona}" for audio synthesis`);
     }
@@ -126,9 +121,7 @@ export async function runAudio(context: Context): Promise<void> {
     context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.COMPLETED, {
       audio_chunks_dir: context.paths.chunksDir,
       audio_chunk_count: chunkMetadata.length,
-      audio_voice_operator: context.options.operatorVoice,
-      audio_voice_historian: context.options.historianVoice,
-      audio_voice_narrator: context.options.narratorVoice,
+      audio_voice_scholar: context.options.scholarVoice,
       audio_files: JSON.stringify(chunkMetadata.map(chunk => chunk.filePath))
     });
 

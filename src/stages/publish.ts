@@ -179,21 +179,27 @@ function buildRssItem(
 
   const relatedLinks = parseRelatedLinks(episode.metadata_related_links);
   const articlePublishedAtHuman = formatHumanDate(episode.metadata_published_at);
-  const htmlDescription = buildHtmlDescription({
+  const descriptionOptions: any = {
     summary,
     originalUrl: episode.original_url || episode.normalized_url,
-    articlePublishedAt: articlePublishedAtHuman,
     relatedLinks,
     models: {
       metadata: episode.metadata_model ?? null,
       script: episode.script_model ?? null
     },
     voices: {
+      scholar: episode.audio_voice_scholar || 'Scholar voice not set',
       operator: episode.audio_voice_operator || 'Operator voice not set',
       historian: episode.audio_voice_historian || 'Historian voice not set',
       narrator: episode.audio_voice_narrator || 'Narrator voice not set'
     }
-  });
+  };
+  
+  if (articlePublishedAtHuman) {
+    descriptionOptions.articlePublishedAt = articlePublishedAtHuman;
+  }
+  
+  const htmlDescription = buildHtmlDescription(descriptionOptions);
   const plainSummary = stripTags(htmlDescription) || summary || subtitle;
 
   const item: Record<string, unknown> = {
@@ -278,7 +284,7 @@ function buildHtmlDescription(options: {
   articlePublishedAt?: string;
   relatedLinks: Array<{ label: string; url: string }>;
   models: { metadata?: string | null; script?: string | null };
-  voices: { operator: string; historian: string; narrator: string };
+  voices: { scholar: string; operator?: string; historian?: string; narrator?: string };
 }): string {
   const summarySection = options.summary
     ? `<p>${escapeXml(options.summary)}</p>`
@@ -302,9 +308,10 @@ function buildHtmlDescription(options: {
     '  <ul>',
     `    <li><strong>Metadata Model:</strong> ${escapeXml(options.models.metadata || 'Unknown')}</li>`,
     `    <li><strong>Script Model:</strong> ${escapeXml(options.models.script || 'Unknown')}</li>`,
-    `    <li><strong>Operator Voice:</strong> ${escapeXml(options.voices.operator)}</li>`,
-    `    <li><strong>Historian Voice:</strong> ${escapeXml(options.voices.historian)}</li>`,
-    `    <li><strong>Narrator Voice:</strong> ${escapeXml(options.voices.narrator)}</li>`,
+    `    <li><strong>Scholar Voice:</strong> ${escapeXml(options.voices.scholar)}</li>`,
+    ...(options.voices.operator ? [`    <li><strong>Operator Voice:</strong> ${escapeXml(options.voices.operator)}</li>`] : []),
+    ...(options.voices.historian ? [`    <li><strong>Historian Voice:</strong> ${escapeXml(options.voices.historian)}</li>`] : []),
+    ...(options.voices.narrator ? [`    <li><strong>Narrator Voice:</strong> ${escapeXml(options.voices.narrator)}</li>`] : []),
     '  </ul>',
     '</div>'
   ].join('\n');

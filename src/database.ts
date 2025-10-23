@@ -33,6 +33,7 @@ export interface EpisodeRow {
   audio_voice_operator?: string;
   audio_voice_historian?: string;
   audio_voice_narrator?: string;
+  audio_voice_scholar?: string;
   audio_total_duration_sec?: number;
   audio_files?: string;
   
@@ -96,6 +97,7 @@ export class EpisodeRepository {
         audio_voice_operator TEXT,
         audio_voice_historian TEXT,
         audio_voice_narrator TEXT,
+        audio_voice_scholar TEXT,
         audio_total_duration_sec REAL,
 
         merge_status TEXT NOT NULL DEFAULT 'pending',
@@ -126,7 +128,22 @@ export class EpisodeRepository {
       // Column already exists, ignore error
     }
     try {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN audio_voice_operator TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    try {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN audio_voice_historian TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    try {
       this.db.exec('ALTER TABLE episodes ADD COLUMN audio_voice_narrator TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    try {
+      this.db.exec('ALTER TABLE episodes ADD COLUMN audio_voice_scholar TEXT');
     } catch (error) {
       // Column already exists, ignore error
     }
@@ -231,6 +248,7 @@ export class EpisodeRepository {
         audio_voice_operator = NULL,
         audio_voice_historian = NULL,
         audio_voice_narrator = NULL,
+        audio_voice_scholar = NULL,
         audio_total_duration_sec = NULL,
         
         merge_status = 'pending',

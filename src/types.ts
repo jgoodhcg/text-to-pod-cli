@@ -13,9 +13,7 @@ export interface Context {
     metadataPromptTemplate?: string;
     scriptSystemPrompt?: string;
     scriptPromptTemplate?: string;
-    operatorVoice: string;
-    historianVoice: string;
-    narratorVoice: string;
+    scholarVoice: string;
     maxScriptChars: number;
     introBumper?: string;
     outroBumper?: string;

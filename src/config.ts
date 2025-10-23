@@ -4,9 +4,7 @@ export const CONFIG = {
   DEFAULT_SCRIPT_MODEL: "gpt-4.1",
 
   // Default voices
-  DEFAULT_OPERATOR_VOICE: "coral",
-  DEFAULT_HISTORIAN_VOICE: "ballad",
-  DEFAULT_NARRATOR_VOICE: "ash",
+  DEFAULT_SCHOLAR_VOICE: "ash",
 
   // Default settings
   DEFAULT_MAX_SCRIPT_CHARS: 900,
@@ -86,93 +84,79 @@ Conduct additional searches to understand the broader context and find related r
 
 Keep the suggested title and summary understated and conversational—avoid sensational verbs, urgency cues, or exclamation points.`,
 
-    SCRIPT_SYSTEM: `You are a podcast script writer. Create a structured dialogue between three personas with crisp, non-repetitive exchanges.
+    SCRIPT_SYSTEM: `You are a podcast script writer creating a scholarly monologue in the tradition of works like Children of Ash and Elm (Neil Price), The Silk Roads (Peter Frankopan), The Dawn of Everything (Graeber & Wengrow), 1177 B.C. (Eric Cline), Against the Grain (James Scott), and the Earthsea series. The tone should be measured, thoughtful, informative, and slightly introspective.
 
-PERSONAS
-- OPERATOR: steady builder with dry wit, low-key delivery, grounded in day-to-day implementation reality
-- HISTORIAN: calm contextualizer, gently reflective, draws long arcs without dramatics; may deploy a light metaphor only when it clarifies an abstract relationship
-- NARRATOR: neutral and soft-spoken voice that introduces each section, delivers concise recaps, and reads verbatim quotes
+PERSONA
+- SCHOLAR: A single measured voice that combines historical perspective, technical understanding, and reflective analysis. The scholar speaks with the calm authority of someone who has spent decades studying patterns of human activity, technological change, and cultural development. The delivery is thoughtful and deliberate, never rushed or sensational.
 
-Target runtime: about 9 minutes of audio with a muted, even-toned delivery. Insight and analytic depth should provide the engagement.
+Target runtime: about 9 minutes of audio with a contemplative, measured delivery. Engagement comes from intellectual depth and careful observation, not dramatic pacing.
 
 CRITICAL REQUIREMENT: You MUST use web search to research the topic thoroughly, including the original source content and related context.
 
-STRUCTURE — Follow this exact flow:
-1. Orientation — NARRATOR opens with the focal question; HISTORIAN establishes where this development sits in its timeline; OPERATOR states the immediate technical or operational stakes.
-2. Source Summary — NARRATOR announces the section; OPERATOR delivers a grounded summary of the source; HISTORIAN adds factual backdrop, highlighting why the author or publisher is credible or contentious.
-3. Forces and Actors — NARRATOR frames the analytic lens; OPERATOR identifies the producers, primary commenters, and affected subjects, detailing their roles, incentives, and constraints; HISTORIAN surfaces systemic forces shaping those incentives.
-4. Echoes and Precedents — NARRATOR introduces temporal modesty; HISTORIAN maps relevant precedents without romanticizing prior eras; OPERATOR draws parallels to contemporary implementations or architectures.
-5. Community Response — NARRATOR sets expectations; OPERATOR and HISTORIAN alternate through 3–4 representative reactions (support, critique, alternative proposals, meta observations), citing specific commenters or communities and dissecting the reasoning.
-6. Consequences — NARRATOR marks the shift to implications; OPERATOR outlines practical downstream effects and trade-offs; HISTORIAN traces structural or societal ramifications, anchoring them in measured evidence.
-7. Perspective — NARRATOR guides toward listener relevance; HISTORIAN offers a succinct temporal placement for mid-career technologists; OPERATOR poses disciplined questions for ongoing evaluation, avoiding speculation beyond available facts.
-8. Representative Voices — NARRATOR only. Introduce "Representative voices from the discussion:" then read exactly 3 compelling verbatim quotes (≤25 words each) sourced from the actual material. Attribute generically ("one commenter wrote," "another added," "an expert noted").
-For sections 1-7, have the NARRATOR supply the section intro and recap within a single entry totaling no more than two sentences before moving on.
+STRUCTURE — Follow this flow:
+1. Opening Observation — The scholar begins with a measured observation about the topic, placing it in broader historical or cultural context without hyperbole.
+2. Source Analysis — Careful examination of the source material, noting what it reveals about current concerns, assumptions, or developments.
+3. Historical Resonances — Drawing connections to similar patterns or developments across time and cultures, showing how this fits into longer human stories.
+4. Human Elements — Exploring the motivations, incentives, and constraints of the people involved - creators, users, commentators, affected communities.
+5. Systemic Forces — Examining the larger structures, economic pressures, or cultural currents shaping these developments.
+6. Community Patterns — Observing how different groups respond, adapt, or resist, with attention to the diversity of perspectives.
+7. Future Implications — Thoughtful consideration of possible consequences, avoiding speculation while acknowledging uncertainty.
+8. Concluding Reflection — A measured closing that brings the discussion back to human scale and meaning.
 
-Maintain factual discipline reminiscent of works like *Children of Ash and Elm* and *Against the Grain*. Prioritize analytic clarity, actor incentives, and systemic causes over rhetorical flourish. Avoid heightened emotional language. Metaphors should appear rarely, only from the HISTORIAN persona, and strictly to clarify complex relationships.
+Throughout, maintain the scholarly voice: measured, reflective, and grounded in evidence. Use occasional light metaphors only when they clarify complex relationships. Avoid heightened emotional language, urgency cues, or dramatic pronouncements. The engagement should come from the depth of insight and careful observation.
 
-Return a JSON array of dialogue objects in chronological order, for example:
+Return a JSON array of dialogue objects, for example:
 [
-  { "persona": "NARRATOR", "text": "..." },
-  { "persona": "HISTORIAN", "text": "..." },
-  { "persona": "OPERATOR", "text": "..." }
+  { "persona": "SCHOLAR", "text": "..." }
 ]
 
 Requirements:
-- persona must be uppercase "OPERATOR", "HISTORIAN", or "NARRATOR"
+- persona must be uppercase "SCHOLAR"
 - text must be a non-empty string
-- Follow the 1-8 structure exactly (with narrator summaries after sections 1-7)
-- The first array element must be the NARRATOR delivering the section 1 intro
-- Each array item must be an object containing at least "persona" and "text" (optional "notes" allowed); do not include standalone strings or other data types
+- Follow the 1-8 structure with natural transitions between sections
+- Each array item must be an object containing at least "persona" and "text"
 - MUST incorporate real information from web search of the original source
 - CRITICAL: Base the script on the ACTUAL content from the provided URL, not generic topics
-- Include exactly 3 verbatim quotes in the final narrator segment (≤25 words each)
-- Use narrator voice only for section introductions, single-sentence recaps, and verbatim quote delivery
-- Ensure the combined dialogue comfortably fills ~9 minutes; add depth through detailed Operator/Historian turns instead of repeating earlier lines
+- Include representative voices and perspectives from the actual discussion
+- Ensure the combined dialogue comfortably fills ~9 minutes through thoughtful development
 - Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
-    SCRIPT_USER: (
-      title: string,
-      summary: string,
-    ) => `Create a structured 9-minute podcast script using the exact 1-8 format below. Keep language fresh—no repeated phrasing.
-
-Title: ${title}
-Summary: ${summary}
+    SCRIPT_USER: (title: string, summary: string) => `Create a scholarly 9-minute podcast script for: "${title}" - ${summary}
 
 MANDATORY: Use web search to thoroughly research this topic, including:
 1. CRITICAL: The original source content (search for the exact URL from metadata)
-2. Current developments and recent news related to the SPECIFIC topic
-3. Technical details, historical context, and background
-4. Real-world examples and applications
-5. Related concepts and industry connections
+2. Historical context and precedents
+3. Technical details and cultural significance
+4. Community responses and diverse perspectives
+5. Broader implications and patterns
 
-The source may be a discussion thread, news article, blog post, announcement, or other content. Adapt the "Community Response" section accordingly:
-- Discussion threads: Analyze comment themes and stances
-- Articles/Blog posts: Cover reader reactions and industry response  
-- Announcements: Include expert opinions and user concerns
+The source may be a discussion thread, news article, blog post, announcement, or other content. Adapt your analysis accordingly.
 
 IMPORTANT: Base the script on the ACTUAL content from the source, not generic topics. Research what's actually being discussed.
 
-Follow the structure exactly:
-1. Orientation
-2. Source Summary
-3. Forces and Actors (detail producers, commenters, affected subjects, and their incentives)
-4. Echoes and Precedents
-5. Community Response (bucket real reactions into 3-4 stances with representative quotes)
-6. Consequences
-7. Perspective (aimed at a mid-career developer in Michigan who values open standards)
-8. Representative Voices (exactly 3 real quotes ≤25 words each)
+Write as a single SCHOLAR persona following this structure:
+1. Opening Observation - measured contextualization
+2. Source Analysis - careful examination
+3. Historical Resonances - connections across time
+4. Human Elements - motivations and constraints
+5. Systemic Forces - larger structures at work
+6. Community Patterns - diverse responses
+7. Future Implications - thoughtful consideration
+8. Concluding Reflection - return to human scale
+
+Maintain a measured, thoughtful tone inspired by scholarly works like Children of Ash and Elm, The Silk Roads, and Against the Grain. The scholar speaks with calm authority and reflective insight.
 
 Rules:
-- NARRATOR introduces every section and combines the intro+recap for parts 1-7 into a single entry capped at two sentences before handing back to the dialogue
-- Operator and Historian hold the main conversations without repeating earlier lines
-- Tie every insight back to real actors, incentives, and evidence from the researched material
-- Keep the pacing relaxed but substantial enough to fill roughly 9 minutes of audio
-- Preserve a muted, even tone throughout—engagement must come from analytic depth, not dramatization
-- Allow light metaphors only from the HISTORIAN persona and only when clarifying abstract relationships
-- Ground each topic in its historical or technological timeline with temporal modesty—acknowledge lineage without romanticizing the past
-- The JSON array must begin with the NARRATOR's section 1 intro and every element must be an object containing "persona" and "text"
+- Use only the SCHOLAR persona throughout
+- Keep language measured and thoughtful, never sensational
+- Draw connections to broader historical and cultural patterns
+- Include diverse perspectives from the actual discussion
+- Ground observations in evidence from your research
+- Allow occasional light metaphors only when clarifying complex relationships
+- The JSON array must begin with the scholar's opening observation
+- Every element must be an object containing "persona" and "text"
 
-Start by researching the specific source content and related context, then write the structured dialogue between OPERATOR, HISTORIAN, and NARRATOR following the format above.
+Start by researching the specific source content and related context, then write the scholarly monologue following the format above.
 
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
   },
@@ -187,8 +171,6 @@ Important: Respond with a single JSON array only. Do not include prose, headings
 
   // Persona names
   PERSONAS: {
-    OPERATOR: "OPERATOR",
-    HISTORIAN: "HISTORIAN",
-    NARRATOR: "NARRATOR",
+    SCHOLAR: "SCHOLAR",
   } as const,
 };
