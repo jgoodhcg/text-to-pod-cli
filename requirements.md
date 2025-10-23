@@ -18,8 +18,8 @@ Environment variables:
 ## Episode Identity & Directory Layout
 Episodes are identified by `episode-id = <yyyyMMdd>-<HHmm>-<hash8>`, where:
 
-- `yyyyMMdd`: UTC date at metadata stage start (supports chronological listing).
-- `HHmm`: UTC time (24h) at metadata stage start.
+- `yyyyMMdd`: Local date at metadata stage start (supports chronological listing).
+- `HHmm`: Local time (24h) at metadata stage start.
 - `<hash8>`: first eight hex chars of SHA-1 hash of the normalized URL (lowercased host, default port stripped, trailing slash removed, sorted query params, fragments removed). Before creating a new episode, query SQLite for an existing row with the same hash; if found and `--force` is not provided, abort to avoid duplicate episodes.
 
 Example directory:

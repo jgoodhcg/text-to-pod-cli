@@ -43,8 +43,8 @@ export function generateUrlHash(url: string): string {
 
 export function generateEpisodeId(urlHash: string): string {
   const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, ''); // yyyyMMdd
-  const time = now.toISOString().slice(11, 16).replace(/:/g, ''); // HHmm
+  const date = now.toLocaleDateString('en-CA').replace(/-/g, ''); // yyyyMMdd (local time)
+  const time = now.toLocaleTimeString('en-GB', { hour12: false }).slice(0, 5).replace(/:/g, ''); // HHmm (local time)
   return `${date}-${time}-${urlHash}`;
 }
 
