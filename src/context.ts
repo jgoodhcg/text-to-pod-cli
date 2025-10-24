@@ -116,6 +116,14 @@ export function buildContext(options: any): Context {
     
     // Add URL to options for stages that need it
     context.options.url = existing.original_url || existing.normalized_url;
+  } else if (options.feedFile) {
+    // HTML generation mode - use provided feed file
+    context.paths.feedFile = resolve(process.cwd(), options.feedFile);
+  } else if (options.runStage === 'html' || options.startStage === 'html') {
+    // HTML generation mode - no feed file needed, will fetch from Spaces
+    // Set default values for HTML generation
+    context.options.spacesOrigin = options.spacesOrigin || CONFIG.DEFAULT_SPACES_ORIGIN;
+    context.options.spacesFeedKey = options.spacesFeedKey || CONFIG.DEFAULT_SPACES_FEED_KEY;
   }
 
   return context;

@@ -174,7 +174,9 @@ Your research should include:
 2. Historical context and precedents 
 3. Technical details and cultural significance
 4. Community responses and diverse perspectives
-5. Broader implications and patterns
+5. CRITICAL: Key players/actors in this space and their motivations
+6. Power structures, competitive dynamics, and strategic interests
+7. Broader implications and patterns
 
 Create a detailed outline that includes:
 - Key themes and insights to explore
@@ -183,6 +185,8 @@ Create a detailed outline that includes:
 - Unique angles or surprising connections
 - Representative voices and perspectives to include
 - Evidence and examples to support each point
+- Key players/actors and their motivations (financial, strategic, ideological)
+- Power dynamics and competitive forces at play
 
 The outline should be flexible enough to allow organic development while providing clear guidance for content creation. Focus on identifying what makes this topic genuinely interesting and worth exploring.
 
@@ -195,6 +199,8 @@ Return a JSON object with:
   "repetition_warnings": ["potential repetitive point to avoid"],
   "evidence_points": ["key evidence or example 1", "key evidence or example 2"],
   "transition_points": ["natural transition 1", "natural transition 2"],
+  "key_players": ["player1 and their motivation", "player2 and their motivation"],
+  "power_dynamics": "description of competitive forces and power structures",
   "target_duration_minutes": 9
 }
 
@@ -212,6 +218,8 @@ MANDATORY: Use web search to thoroughly research this topic, including the origi
 The source may be a discussion thread, news article, blog post, announcement, or other content. Adapt your research accordingly.
 
 IMPORTANT: Base the outline on the ACTUAL content from the source, not generic topics. Research what's actually being discussed.
+
+Pay special attention to identifying key players/actors in this space and what motivates them - financial interests, strategic goals, ideological positions, competitive pressures, etc. Also analyze power dynamics and competitive forces.
 
 Focus on creating a flexible outline that guides natural, flowing content rather than rigid sections. Identify what makes this topic genuinely interesting and how to explore it without repetition.
 
@@ -238,8 +246,12 @@ Instead of rigid sections, think in terms of natural narrative flow:
 - Develop ideas through evidence and analysis
 - Make connections to broader patterns and contexts
 - Explore human motivations and systemic forces
+- Selectively incorporate key players and their motivations ONLY when interesting and relevant
+- Focus on power dynamics that reveal deeper insights about the topic
 - Consider implications and consequences
 - End with thoughtful reflection that brings it to human scale
+
+NOTE ON PLAYER ANALYSIS: Use the key players and power dynamics from your outline, but be selective. Only include player motivations and competitive dynamics when they reveal something genuinely interesting about the topic or help explain why things are the way they are. Cut any player analysis that feels forced or irrelevant.
 
 AVOID:
 - Robotic section introductions
@@ -247,6 +259,8 @@ AVOID:
 - Formulaic transitions
 - Heightened emotional language or urgency cues
 - Speculation beyond available evidence
+- Forced or irrelevant player analysis that doesn't illuminate the topic
+- Overly detailed corporate/organizational descriptions that bore listeners
 
 Return a JSON array of dialogue objects, for example:
 [
@@ -291,6 +305,9 @@ REFINEMENT PRINCIPLES:
 - Maintain the thoughtful, introspective scholarly voice
 - Preserve all key insights and evidence
 - Enhance clarity without oversimplifying
+- CRITICAL: Cut player analysis that doesn't illuminate the topic's core insights
+- Remove corporate descriptions that feel like filler content
+- Keep only the motivation analysis that reveals something genuinely interesting
 
 SPECIFIC FIXES TO LOOK FOR:
 - "As we saw earlier..." or similar backward references
@@ -299,6 +316,9 @@ SPECIFIC FIXES TO LOOK FOR:
 - Paragraphs that say essentially the same thing
 - Robotic or overly formal language
 - Section-like introductions or summaries
+- Player or company analysis that doesn't reveal interesting insights
+- Overly detailed descriptions of organizations that don't serve the narrative
+- Forced connections to motivations that feel speculative or irrelevant
 
 Return the refined script as a JSON array of dialogue objects:
 [

@@ -89,3 +89,28 @@ Enhanced episode descriptions include:
 - Extracted description notes highlighting what makes each episode unique
 - Related links from metadata research
 - Voice configuration details
+
+## Prompt Iterations
+
+### Phase 1: Two-Person Structure *(October 2025)*
+Initial implementation used a JSON script structure with operator and historian personas. Scripts were broken into pieces and processed through TTS individually, then reassembled.
+
+### Phase 2: Three-Person Addition *(Mid-October 2025)*
+Added a narrator persona to the existing operator and historian structure. Script complexity increased to accommodate three distinct voices.
+
+### Phase 3: Pipeline Implementation *(October 11, 2025)*
+Built complete five-stage pipeline (metadata, script, audio, merge, publish) while maintaining multi-persona script approach. Prompts focused on creating natural conversation flow between voices.
+
+### Phase 4: Single Scholar Persona *(October 22, 2025)*
+Replaced multi-persona structure with single "scholar" voice. Persona inspired by historical non-fiction works including Children of Ash and Elm, The Silk Roads, and Against the Grain.
+
+### Phase 5: Multi-Stage Script Generation *(October 22, 2025)*
+Implemented five-stage script process:
+- Stage 1: Research & outline (gpt-4o-mini)
+- Stage 2: Content generation (gpt-4o)
+- Stage 3: Refinement & polish (gpt-4.1)
+- Stage 4: Quality validation
+- Stage 5: Description notes extraction (gpt-4o-mini)
+
+### Phase 6: Audio Tone Styling *(October 23, 2025)*
+Added tonal guidance to TTS prompts for style and cadence control beyond voice selection.
