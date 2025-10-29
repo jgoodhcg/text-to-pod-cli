@@ -14,6 +14,15 @@ interface ScriptOutline {
   evidence_points: string[];
   transition_points: string[];
   target_duration_minutes: number;
+  key_players?: string[];
+  power_dynamics?: string;
+  community_signals?: string[];
+  creator_profile?: string;
+  motivations_and_intent?: string;
+  attribution_notes?: string[];
+  life_impact_lenses?: string[];
+  vibe_descriptor?: string;
+  interest_proxy?: string;
 }
 
 interface DescriptionNotes {
@@ -298,8 +307,12 @@ export async function runScript(context: Context): Promise<void> {
   // Check if already completed
   const existing = context.db.findByEpisodeId(context.episodeId);
   if (existing?.script_status === CONFIG.STAGE_STATUS.COMPLETED) {
-    console.log('[script] Stage already completed, skipping');
-    return;
+    if (context.options.force) {
+      console.log('[script] Stage previously completed, rerunning due to --force');
+    } else {
+      console.log('[script] Stage already completed, skipping');
+      return;
+    }
   }
 
   // Check prerequisites
