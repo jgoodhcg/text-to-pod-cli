@@ -33,6 +33,9 @@ npm start -- --url https://example.com/article --force
 # Dry run an individual stage (logs actions without hitting external services)
 npm start -- --episode-dir 20251022-1430-f353a601 --run-stage audio --dry-run
 
+# Force rerun a completed stage (clears cached status)
+npm start -- --episode-dir 20251022-1430-f353a601 --run-stage script --force
+
 # Publish only, skipping uploads but previewing the RSS summary
 npm start -- --episode-dir 20251022-1430-f353a601 --run-stage publish --no-publish
 
@@ -68,6 +71,7 @@ The script stage uses a sophisticated multi-stage process:
 - **Content Stage** (`--script-content-model`): Generate flowing scholarly monologue  
 - **Refinement Stage** (`--script-refinement-model`): Polish and eliminate repetition
 - **Description Stage** (`--script-description-model`): Extract compelling description notes
+- **Evaluation Profile**: All prompts reference a public-safe interest profile so episodes stay aligned with our documented hooks, red flags, and life-lens perspectives.
 
 Default models are optimized for cost-effectiveness and quality:
 - Outline: `gpt-4o-mini` (fast, affordable research)
@@ -114,3 +118,8 @@ Implemented five-stage script process:
 
 ### Phase 6: Audio Tone Styling *(October 23, 2025)*
 Added tonal guidance to TTS prompts for style and cadence control beyond voice selection.
+
+### Phase 7: Evaluative Briefing Prompts *(October 29, 2025)*
+- Metadata stage narrowed to neutral, evidence-only extraction (title, author, publication data, source type, related links) to keep later analysis unbiased.
+- Outline stage now records community signals, creator intent, vibe descriptors, attribution notes, and life-lens impacts mapped to a public evaluation profile.
+- Script, refinement, and description prompts were rewritten to deliver concise, attribution-heavy analysis that answers: what the source claims, who made it, how people are reacting, and how it might matter to the listener—without hype language or unsupported generalities.
