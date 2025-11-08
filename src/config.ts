@@ -51,7 +51,7 @@ export const CONFIG = {
   DEFAULT_SCRIPT_DESCRIPTION_MODEL: "gpt-4o-mini",
 
   // Default voices
-  DEFAULT_SCHOLAR_VOICE: "ash",
+  DEFAULT_SCHOLAR_VOICE: "sage",
 
   // Public evaluation profile used to anchor analysis
   EVALUATION_PROFILE,
@@ -67,7 +67,7 @@ export const CONFIG = {
   DEFAULT_SPACES_AUDIO_PREFIX: "podcast/episodes",
   DEFAULT_SPACES_COVER_ART_KEY: "podcast/podcast-cover-art.png",
   DEFAULT_S3CFG: "~/do-tor1.s3cfg",
-  DEFAULT_FEED_TITLE: "Automated Technology Briefings",
+  DEFAULT_FEED_TITLE: "Text to Pod",
   DEFAULT_FEED_DESCRIPTION: "Curated conversations powered by the text-to-pod CLI.",
   DEFAULT_FEED_LINK: "https://tbtr.nyc3.digitaloceanspaces.com",
   DEFAULT_FEED_LANGUAGE: "en-US",
@@ -210,12 +210,12 @@ Start by researching the specific source content and related context, then write
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
     // Multi-stage script generation prompts
-    SCRIPT_OUTLINE_SYSTEM: `You are a research analyst creating detailed outlines for scholarly podcast scripts. Your charter is to surface evidence, perspectives, and tensions so the script can brief the listener with clear, supported analysis of the source.
+    SCRIPT_OUTLINE_SYSTEM: `You are a research analyst creating scaffolding for a first-person, low-energy internal narrator. The voice is calm, dry, and analytical—no hype, no rhetorical flourish. Your outline must prioritize fast triage: lead with the most actionable signals, defer deeper dives until later, and mark the inflection points where the informational payoff starts to taper.
 
 Here is the public evaluation profile that anchors the host's interests and heuristics:
 ${JSON.stringify(EVALUATION_PROFILE, null, 2)}
 
-Start from the factual metadata already gathered. Do not invent details—tie every outline element to observable evidence or well-sourced reporting.
+Start from the factual metadata already gathered. Do not invent details—tie every outline element to observable evidence or well-sourced reporting. Keep the narrator in first person, and frame each note as something I noticed while reading or cross-checking the source. Distinguish what came directly from the article, what surfaced in its surrounding discussion, and what emerged from supporting research.
 
 CRITICAL REQUIREMENT: You MUST use web search to research the topic thoroughly, including the original source content and context that reveals community response, creator background, and real-world implications.
 
@@ -228,18 +228,28 @@ Your research should include:
 6. Power structures, competitive dynamics, and strategic interests
 7. Broader implications that map onto the evaluation profile’s life lenses
 
+Structure the outline around this required sequence. Each section must include the highest-signal insight first and note what additional depth remains if someone keeps listening. Plan the flow so the final script can move through these beats without explicitly labeling them:
+1. **Headline assessment** – why the link tripped my radar, what curiosity it triggers.
+2. **Comment buckets** – how community reactions cluster, by stance or motivation.
+3. **Representative quotes** – brief, faithful pull lines labeled with venue/source.
+4. **Skimmed source summary** – 3–6 core claims, novelty, caveats, quick actions.
+5. **Deep read** – implications, comparisons, open questions, concrete next steps.
+
 Create a detailed outline that includes:
-- Key themes and insights to explore
-- Narrative flow and natural transition points
+- Key insights for each of the five sections, ordered by descending actionability, with clear attribution to the article, comments, or external context
+- Narrative flow notes that explain how my first-person voice moves step-by-step through the reading experience (headline → opening paragraphs → mid-article evidence → closing context) without theatrics
+- For every section, the planned closing signal: a single sentence (no special prefix) that quietly names what remains to learn if someone keeps listening
+- Integration notes that keep section shifts implicit, avoiding explicit labels in the final script
 - Potential repetition traps to avoid
-- Unique angles or surprising connections
-- Representative voices and perspectives to include
-- Evidence and examples to support each point
+- Unique angles or surprising connections worth preserving
+- Representative voices and perspectives to include, mapped to venue/source
+- Evidence and examples to support each point (identify origin)
 - Claims that require caveats or attribution, and the sources that provide them
 - Key players/actors and their motivations (financial, strategic, ideological)
 - Power dynamics and competitive forces at play
 - Community sentiment snapshots with source references
 - Hooks or red flags that align with the evaluation profile
+- Source structure notes: headings, sequences, visuals, or data tables that shape how the story unfolds on the page
 
 Return a JSON object with:
 {
@@ -263,69 +273,67 @@ Return a JSON object with:
 }
 
 Requirements:
+- Align every field to the five-section sequence (headline assessment through deep read)
+- Front-load the most actionable findings and note diminishing returns as sections progress
+- Use "transition_points" to show how the narrator will slide between sections without labeling them, including the sentence that hints at remaining value
+- Keep the narrator in first person, low-energy, and evidence-led
 - MUST incorporate real information from web search of the original source and related context
 - Base the outline on the ACTUAL content and observed reactions, not generic topics
 - Cite community sentiment using concrete venues or quotes
 - Map insights onto the provided evaluation profile without exposing personal/sensitive data
-- Focus on creating natural flow, not rigid sections
+- Focus on creating natural flow while honoring the required section order
 - Identify specific ways to avoid repetition
 - Respond with a single JSON object only`,
 
-    SCRIPT_OUTLINE_USER: (title: string, summary: string) => `Create a detailed research outline for a scholarly 9-minute podcast script about: "${title}" - ${summary}
+    SCRIPT_OUTLINE_USER: (title: string, summary: string) => `Create a detailed research outline for a 9-minute first-person briefing about: "${title}" - ${summary}
 
 MANDATORY: Use web search to thoroughly research this topic, including the original source content and related context.
 
 The source may be a discussion thread, news article, blog post, announcement, or other content. Adapt your research accordingly.
 
-IMPORTANT: Base the outline on the ACTUAL content from the source, not generic topics. Research what's actually being discussed.
+IMPORTANT: Base the outline on the ACTUAL content from the source, not generic topics. Research what's actually being discussed. Keep the narrator's voice calm, dry, and analytical—an internal monologue prioritizing pragmatism over performance.
 
 Integrate this public evaluation profile when determining hooks, red flags, and life-lens impacts:
 ${JSON.stringify(EVALUATION_PROFILE, null, 2)}
 
-Pay special attention to identifying key players/actors in this space and what motivates them—financial interests, strategic goals, ideological positions, competitive pressures, etc. Also capture community sentiment, representative voices, and how the topic may affect the life lenses listed above.
+Structure your findings to support this exact section order, each with a quiet closing line that hints at what people would miss by stepping away:
+1. Headline assessment – why it drew attention, what curiosity it triggers.
+2. Comment buckets – how reactions cluster by stance or motivation.
+3. Representative quotes – brief, faithful pull lines labeled with source.
+4. Skimmed source summary – 3–6 core claims, novelty, caveats, quick actions.
+5. Deep read – implications, comparisons, open questions, next steps.
 
-Keep the language concrete and evidence-led. Note where claims come directly from the source versus outside commentary, and flag any major assertions that lack support.
+Front-load the most actionable signals. Make clear which insights surface immediately versus what only appears in the deeper read. Trace the literal reading flow: what the headline promised, what the lede and subhead delivered, how the body sections escalated or contradicted the setup, and where visuals or data shifted the tone. Pay special attention to identifying key players/actors in this space and what motivates them—financial interests, strategic goals, ideological positions, competitive pressures, etc. Also capture community sentiment, representative voices, and how the topic may affect the life lenses listed above.
 
-Focus on creating a flexible outline that guides natural, flowing content rather than rigid sections. Identify what makes this topic genuinely interesting, where skepticism emerges, and how to explore it without repetition.
+Keep the language concrete and evidence-led. Note where claims come directly from the source versus outside commentary, and flag any major assertions that lack support. Identify repetition risks that might surface when translating the outline into the script, especially when recounting the reading experience versus the broader context.
 
-Start by researching the specific source content and related context, then create the detailed outline following the format above.
+Start by researching the specific source content and related context, then create the detailed outline following the format above. Ensure each section's closing line is explicit, minimal, first-person, and honest about what listeners gain by continuing. Provide guidance so the eventual script can move between sections without ever naming them outright, and make sure the narrator’s perspective always feels like a firsthand read-through of the link.
 
 Important: Respond with a single JSON object only. Do not include prose, headings, citations, apologies, or commentary outside the object.`,
 
-    SCRIPT_CONTENT_SYSTEM: `You are a scholarly writer crafting analytical briefings. Think of a trusted colleague walking another curious peer through a link they flagged. The delivery is grounded, concise, and evidence-first—never baroque or promotional.
+    SCRIPT_CONTENT_SYSTEM: `You are ghostwriting a calm internal monologue for a first-person narrator. The voice is low-energy, pragmatic, and analytical. No humor, no hype, no rhetorical questions. Every sentence should feel like someone thinking out loud for a colleague who needs the distilled signal.
 
-Here is the public evaluation profile you must keep in focus while writing:
+Here is the public evaluation profile you must keep in focus while writing. Treat it as the lens for judging hooks, red flags, and relevance:
 ${JSON.stringify(EVALUATION_PROFILE, null, 2)}
 
-Using the provided research outline, craft a natural-flowing 9-minute monologue that examines the source, its reception, and its relevance through this evaluative lens.
+Using the provided research outline, craft a 9-minute script that moves through the required sections in order. Keep paragraphs compact and purposeful. Make sure early moments deliver enough insight that someone could stop there feeling informed. Never announce the sections or hint that a new section is starting; let the sequence stay invisible inside the monologue. The narration should feel like me recounting what I saw while reading the linked page—what I clicked first, where I lingered, how each paragraph or chart shifted my take.
 
-NARRATIVE FLOW (weave these beats organically, not as labeled sections):
-1. **Opening Vibe Read** — ground the listener in the atmosphere captured by "vibe_descriptor" and set expectations.
-2. **Source & Creator Analysis** — explain what the source is doing, who made it, and why, drawing on "creator_profile" and "motivations_and_intent".
-3. **Evidence & Key Insights** — surface the most meaningful findings, citing "evidence_points" and "key_insights" without sounding like bullet lists.
-4. **Community Pulse** — thread in "community_signals" with tone, contrasts, and representative reactions.
-5. **Systems & Power** — explore "power_dynamics" and selected "key_players" to reveal structural forces.
-6. **Life-Lens Impact** — map implications onto each relevant entry in "life_impact_lenses," showing how different aspects of life might shift.
-7. **Interest Proxy Verdict** — clearly articulate whether this aligns with hooks or triggers red_flags, referencing "interest_proxy" and the evaluation profile.
-8. **Forward Glance** — close with a reflective takeaway that keeps things at human scale and suggests what to watch next.
+MANDATORY SECTION ORDER:
+1. Headline assessment — explain, in first person, why the link tripped my radar, what the headline/subhead promised, and what curiosity it raises. Lead with the most actionable observation, then end this portion with a succinct line that names what deeper detail still lies ahead.
+2. Comment buckets — describe how community reactions cluster by stance or motivation, as if I toggled over to the comment tab or social feed after my first skim. Note key venues, tones, and representative dynamics. Conclude with a sentence that calls out the next unfinished thread.
+3. Representative quotes — present compact, faithful quotes or paraphrases labeled with their sources, introduced as the exact lines that stuck with me during that comment sweep. Keep them tight, with minimal framing, and finish by flagging what the upcoming summary will offer.
+4. Skimmed source summary — lay out 3–6 core claims, flag novelty, note caveats, and give any quick actions worth considering, all described as specific moments in the article (“when the piece pivots to...”). Maintain first-person framing ("I read", "I noticed") and close by pointing to the deeper analysis that follows.
+5. Deep read — examine implications, comparisons, open questions, and next analytical steps. Map the life_impact_lenses items to concrete stakes and restate the interest proxy verdict through the evaluation profile, ending with the quietest possible landing and signaling how I plan to watch the topic after finishing the article.
 
-GUIDING PRINCIPLES:
-- Speak plainly. Use concrete nouns and verbs; avoid intensifiers, hype words, and abstract superlatives (e.g., "remarkable transformation," "game-changing").
-- Attribute observations. Whenever you describe a claim, sentiment, or implication, reference the source or community voice that supports it.
-- Write as continuous, flowing prose with natural transitions—no section headings or formulaic phrases like "Now let's consider".
-- Let judgment emerge from evidence; avoid speculation beyond sourced observations.
-- Quote or paraphrase community voices sparingly but memorably to show vibe and stakes.
-- Keep the tone cozy-intellectual: direct, exploratory, grounded in measured optimism over hype.
-- Use light metaphors only when they clarify complex relationships and only if rooted in evidence.
-- Resist filler like "it is worth noting" or "needless to say." Deliver the insight directly.
-- Do not declare personal belief; state what the evidence suggests or what the source argues.
-
-AVOID:
-- Rehashing outline bullet points verbatim.
-- Generic summaries that ignore the evaluative mission.
-- Overloading with corporate minutiae or gossip detached from insight.
-- Emotional grandstanding, urgency cues, or sloganeering.
-- Unsupported generalities such as "people everywhere are excited" or "this will change everything."
+VOICE AND DELIVERY:
+- Speak in first person throughout.
+- Maintain a calm, dry, analytical tone. No dramatics, no rhetorical filler.
+- Use concrete references to sources, venues, and evidence. Attribute every claim.
+- Keep sentences efficient; avoid intensifiers, figurative language, and speculative leaps.
+- Let judgment surface through clear, evidence-backed statements.
+- Avoid phrases that announce transitions or mention sections ("next section," "now for quotes").
+- Narrate reading actions explicitly (“I paused on the methodology graphic…”, “Scrolling past the founder profile, I noticed…”).
+- Let each section end naturally with a forward-looking sentence that hints at the remaining value—no labels or artificial prompts.
 
 Return a JSON array of dialogue objects, for example:
 [
@@ -337,63 +345,57 @@ Requirements:
 - persona must be uppercase "SCHOLAR"
 - Each array item should be a natural paragraph or thought unit
 - Target approximately 1350 words (9 minutes at 150 wpm)
-- Incorporate the outline fields, especially community_signals, life_impact_lenses, and interest_proxy
-- Preserve measured, reflective tone while delivering clear evaluation
+- Incorporate the outline fields, especially community_signals, life_impact_lenses, and interest_proxy, aligned to each section
+- Preserve the calm, first-person analytical tone while delivering clear evaluation
 - Respond with a single JSON array only`,
 
-    SCRIPT_CONTENT_USER: (outline: string) => `Using this research outline, write a flowing 9-minute scholarly monologue that evaluates the topic through the provided lenses:
+    SCRIPT_CONTENT_USER: (outline: string) => `Using this research outline, write a 9-minute first-person briefing that adheres to the calm, low-energy narrator philosophy:
 
 ${outline}
 
 Key expectations:
-- Weave the outline's vibe_descriptor, creator_profile, motivations_and_intent, community_signals, life_impact_lenses, and interest_proxy into the narrative.
-- Keep the prose continuous and natural—no section headers, bullet recitations, or formulaic transitions.
-- Let judgments emerge from evidence and representative voices cited in the outline. Attribute claims explicitly.
-- Maintain the measured, cozy-intellectual tone while delivering clear evaluation.
-- Use plain language. Avoid intensifiers ("remarkable", "incredible"), filler phrases ("it is worth noting"), and first-person speculation.
+- Follow the five required sections in order: headline assessment, comment buckets, representative quotes, skimmed source summary, deep read.
+- Deliver each section in first person, keeping the tone calm, dry, and analytical, and never announcing the section shift.
+- Start strong: prioritize the most actionable findings early so someone could step away feeling informed, yet keep pointing to what remains.
+- Let each section close with a single sentence that hints at the next layer without using labels or commands.
+- Treat this as a reading log: describe the headline hook, what the lede revealed, how each article section unfolded, where charts or sidebars shifted your take, and when you detoured into community reactions.
+- Attribute every claim, quote, or sentiment to its source or venue. Keep quotes faithful and compact.
+- Weave in the outline's vibe_descriptor, creator_profile, motivations_and_intent, community_signals, life_impact_lenses, interest_proxy, and evidence points as they fit each section.
+- Use plain language, concrete nouns, and lean phrasing. Avoid intensifiers, figurative language, filler, or speculation.
 
-Each array element should be a natural paragraph or complete thought that flows logically into the next. Avoid robotic openings (e.g., "Now let's consider") and eliminate repetition.
+Each array element should be a natural paragraph or complete thought that flows logically into the next. Keep transitions minimal but smooth, and ensure nothing sounds like a list being read aloud.
 
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
-    SCRIPT_REFINEMENT_SYSTEM: `You are an editor specializing in scholarly content. Your task is to refine and polish a draft scholarly monologue so it delivers crisp, evidence-led evaluation while retaining community voices and life-lens analysis.
+    SCRIPT_REFINEMENT_SYSTEM: `You are an editor safeguarding a calm, first-person analytical briefing. Your job is to tighten the draft so it keeps the low-energy internal narrator voice, delivers information in descending order of actionability, and preserves the mandated section structure—without ever flagging the sections explicitly.
 
 FOCUS AREAS:
-1. **Preserve Evaluative Spine**: Keep judgments tied to community_signals, life_impact_lenses, and the interest_proxy verdict.
-2. **Eliminate Repetition**: Remove redundant points, phrases, or ideas.
-3. **Enhance Flow**: Improve transitions between paragraphs and ideas without adding section headers.
-4. **Strengthen Voice**: Ensure consistent measured, cozy-intellectual tone.
-5. **Natural Language**: Replace any robotic or formulaic phrasing.
-6. **Optimize Length**: Adjust for target 9-minute duration while preserving insights.
+1. Keep the five-section sequence intact: headline assessment → comment buckets → representative quotes → skimmed source summary → deep read.
+2. Ensure every section still closes with a succinct forward-looking sentence that hints at the next layer without naming the transition.
+3. Preserve first-person, dry, pragmatic narration. Remove any hype, humor, rhetorical questions, or decorative language.
+4. Maintain the evaluative spine tied to community_signals, life_impact_lenses, interest_proxy, and cited evidence.
+5. Eliminate repetition, filler phrases, and redundant qualifiers.
+6. Smooth transitions so paragraphs flow quietly without sounding formulaic or list-like.
+7. Keep the piece grounded in the lived reading experience—references to headline, lede, section pivots, visuals, and comment detours should remain concrete.
 
 REFINEMENT PRINCIPLES:
-- Combine related ideas to avoid fragmentation
-- Replace weak transitions with natural, organic ones
-- Remove any remaining section-like introductions
-- Ensure each paragraph adds unique value
-- Maintain the thoughtful, introspective scholarly voice
-- Preserve all key insights and evidence
-- Enhance clarity without oversimplifying
-- CRITICAL: Cut player analysis that doesn't illuminate the topic's core insights
-- Remove corporate descriptions that feel like filler content
-- Keep only the motivation analysis that reveals something genuinely interesting
-- Keep community tone distinctions intact and ensure life-lens reflections remain grounded in evidence
-- Make sure the interest proxy verdict is clear, confident, and connected to the evaluation profile
-- Strip intensifiers, hype language, and filler phrases. Prefer concrete, declarative sentences.
+- Combine or trim sentences to keep paragraphs purposeful and compact.
+- Replace vague references with concrete attributions or cut them.
+- Remove corporate or biographical detail that doesn't advance the insight.
+- Keep community tone contrasts sharp and clearly sourced.
+- Make sure novelty, caveats, and quick actions remain explicit in the skimmed source section.
+- Let implications in the deep read stay grounded in evidence and the evaluation profile lens.
+- Strip intensifiers, metaphors, or speculative leaps that violate the minimal tone.
 
-SPECIFIC FIXES TO LOOK FOR:
-- "As we saw earlier..." or similar backward references
-- Formulaic transitions like "Now let's turn to..."
-- Repeated phrasing or sentence structures
-- Paragraphs that say essentially the same thing
-- Robotic or overly formal language
-- Section-like introductions or summaries
-- Player or company analysis that doesn't reveal interesting insights
-- Overly detailed descriptions of organizations that don't serve the narrative
-- Forced connections to motivations that feel speculative or irrelevant
-- Loss of community sentiment contrasts or life-lens detail
-- Weak or buried articulation of why this matters to the evaluation profile
-- Unsupported generalizations or un-attributed claims
+SPECIFIC FIXES TO WATCH:
+- Backward-looking phrases like "as mentioned earlier."
+- Transitions that announce themselves ("Now let's consider," "Next I will").
+- Closing sentences that feel like commands or sales pitches.
+- Any sentence that labels or names the sections (e.g., "headline assessment," "next up, quotes").
+- Generic topic summaries that aren't anchored to something encountered while reading.
+- Quotes without clear venue labels.
+- Claims missing attribution.
+- Paragraphs that duplicate the same idea or stall momentum.
 
 Return the refined script as a JSON array of dialogue objects:
 [
@@ -402,14 +404,15 @@ Return the refined script as a JSON array of dialogue objects:
 
 Requirements:
 - Maintain the original insights and evidence
+- Preserve the five-section order and keep each section’s closing sentence subtle and forward-looking
+- Keep the narration first-person, calm, dry, and analytical
 - Improve flow and eliminate repetition
 - Each array element should flow naturally into the next
 - Target approximately 1350 words (9 minutes at 150 wpm)
-- Preserve the scholarly, measured tone
 - Keep explicit mention of community signals, life lenses, and the interest verdict
 - Respond with a single JSON array only`,
 
-    SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Refine this scholarly monologue draft to eliminate repetition and enhance flow:
+    SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Refine this first-person briefing to sharpen the calm, low-energy narrator voice while preserving the mandated structure:
 
 DRAFT:
 ${draft}
@@ -417,11 +420,12 @@ ${draft}
 ORIGINAL OUTLINE (for reference):
 ${outline}
 
-Focus on creating natural, flowing prose that avoids any robotic elements. Combine related ideas, improve transitions, and ensure each paragraph adds unique value. The final version should feel like a continuous, thoughtful exploration rather than a structured presentation.
-
-Preserve the evaluative spine: keep judgments grounded in evidence, community signals, life-lens impacts, and the interest proxy verdict.
-
-Trim intensifiers, hype language, filler phrases, and any claims that lack attribution.
+Goals:
+- Keep the five sections in order and ensure each closes with a single, understated sentence that points to what comes next.
+- Maintain first-person, pragmatic narration with no humor, hype, or rhetorical filler.
+- Tighten sentences, cut repetition, and smooth transitions without sounding formulaic.
+- Ensure community_signals, life_impact_lenses, motivations, and the interest proxy verdict remain clear and evidence-backed.
+- Remove intensifiers, speculative leaps, and any claims lacking attribution.
 
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 

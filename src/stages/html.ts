@@ -41,12 +41,14 @@ function generateHTML(feed: RSSFeed): string {
     new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()
   );
 
+  const pageIntro = 'episode list pulled from the rss feed.';
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${escapeHtml(feed.title)}</title>
+    <title>Episode List</title>
     <meta name="description" content="${escapeHtml(feed.description)}">
     <meta name="author" content="${escapeHtml(feed.author)}">
     
@@ -72,449 +74,306 @@ function generateHTML(feed: RSSFeed): string {
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Liberation Mono", "Courier New", monospace;
+            background-color: #0c0c0c;
+            color: #d8d8d8;
             line-height: 1.6;
-            color: #333;
-            background-color: #f8f9fa;
         }
         
-        .container {
-            max-width: 1200px;
+        .page {
+            max-width: 640px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 32px 16px 64px;
         }
         
         header {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-            color: white;
-            padding: 60px 0;
-            text-align: center;
+            padding-bottom: 16px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #1e1e1e;
         }
         
-        .header-content {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            font-weight: 700;
-        }
-        
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-            margin-bottom: 30px;
-        }
-        
-        .meta-info {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            flex-wrap: wrap;
-            font-size: 0.9rem;
-            opacity: 0.8;
-        }
-        
-        .meta-info span {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .podcast-image {
-            width: 200px;
-            height: 200px;
-            border-radius: 20px;
-            margin: 0 auto 30px;
-            display: block;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        .feed-cover {
+            width: 100%;
+            max-height: 280px;
             object-fit: cover;
+            margin-bottom: 20px;
+            display: block;
         }
         
-        main {
-            padding: 60px 0;
+        .page-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: lowercase;
+            margin: 0 0 6px;
+            color: #f3f3f3;
         }
         
-        .search-section {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 40px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .page-description {
+            margin-top: 10px;
+            color: #868b94;
+        }
+        
+        .page-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            list-style: none;
+            padding: 0;
+            margin: 14px 0 0;
+            font-size: 0.85rem;
+            color: #6f757d;
+        }
+        
+        .page-meta .meta-link {
+            color: #9cdcfe;
+            text-decoration: none;
+        }
+        
+        .page-meta .meta-link:hover {
+            text-decoration: underline;
+        }
+        
+        .search {
+            margin-bottom: 24px;
+        }
+        
+        .search-label {
+            display: block;
+            font-size: 0.8rem;
+            color: #6f757d;
+            margin-bottom: 6px;
         }
         
         .search-input {
             width: 100%;
-            padding: 15px 20px;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            padding: 10px 12px;
+            border: 1px solid #1f1f1f;
+            border-radius: 4px;
+            background-color: #131313;
+            color: #e6e6e6;
+            font-size: 0.95rem;
         }
         
         .search-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #3d7eff;
         }
         
-        .episodes-grid {
-            display: grid;
-            gap: 30px;
-            grid-template-columns: 1fr;
+        .episodes {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
         }
         
-        .episode-card {
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .episode-item {
+            padding: 16px 0 14px;
+            border-top: 1px solid #1a1a1a;
         }
         
-        .episode-content {
-            padding: 30px;
+        .episode-item:first-child {
+            border-top: none;
         }
         
         .episode-title {
-            font-size: 1.3rem;
+            font-size: 1.05rem;
             font-weight: 600;
-            margin-bottom: 10px;
-            color: #2c3e50;
+            margin: 0;
+            color: #f3f3f3;
         }
         
         .episode-meta {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
-            color: #6c757d;
-        }
-        
-        .episode-date {
-            font-weight: 500;
-        }
-        
-        .episode-duration {
-            background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 5px;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin-top: 8px;
             font-size: 0.8rem;
+            color: #7e838c;
         }
         
-        .episode-description {
-            color: #495057;
-            margin-bottom: 15px;
-            line-height: 1.6;
+        .episode-summary {
+            margin-top: 10px;
+            color: #c3c3c3;
         }
         
         .description-toggle {
-            background: none;
+            margin-top: 10px;
             border: none;
-            color: #1a1a2e;
+            background: none;
+            color: #9cdcfe;
             cursor: pointer;
-            font-size: 0.9rem;
-            margin-bottom: 15px;
-            transition: color 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-weight: 500;
+            font-size: 0.8rem;
+            padding: 0;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
         }
         
-        .description-toggle:hover {
-            color: #0f3460;
-        }
-        
-        .description-toggle::after {
-            content: '▼';
-            font-size: 0.7em;
-            transition: transform 0.3s;
-        }
-        
-        .description-toggle.expanded::after {
-            transform: rotate(180deg);
+        .description-toggle:focus-visible {
+            outline: 1px solid #9cdcfe;
+            outline-offset: 2px;
         }
         
         .full-description {
-            background: #f8f9fa;
-            border-left: 4px solid #1a1a2e;
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 0 8px 8px 0;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #1e1e1e;
             display: none;
-            line-height: 1.7;
+            color: #c3c3c3;
         }
         
         .full-description.show {
             display: block;
         }
         
-        .full-description h3 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-            font-size: 1.1rem;
-        }
-        
-        .full-description p {
-            margin-bottom: 12px;
-            color: #495057;
-        }
-        
-        .full-description p:last-child {
-            margin-bottom: 0;
-        }
-        
-        /* Style for extracted RSS content */
-        .full-description .episode-description {
-            margin-bottom: 20px;
-        }
-        
-        .full-description .episode-source {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-        
-        .full-description .episode-source h3 {
-            color: #1a1a2e;
-            margin-bottom: 10px;
-            font-size: 1rem;
-        }
-        
-        .full-description .episode-source a {
-            color: #0f3460;
-            text-decoration: none;
-            word-break: break-all;
-        }
-        
-        .full-description .episode-source a:hover {
-            text-decoration: underline;
-        }
-        
-        .full-description .episode-stack {
-            background: #f1f3f4;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-        
-        .full-description .episode-stack h3 {
-            color: #1a1a2e;
-            margin-bottom: 10px;
-            font-size: 1rem;
-        }
-        
-        .full-description .episode-stack ul {
-            margin: 0;
-            padding-left: 20px;
-        }
-        
-        .full-description .episode-stack li {
-            margin-bottom: 5px;
-            color: #495057;
-        }
-        
-        .full-description .episode-related {
-            background: #e8f4f8;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-        
-        .full-description .episode-related h3 {
-            color: #1a1a2e;
-            margin-bottom: 10px;
-            font-size: 1rem;
-        }
-        
-        .full-description .episode-related a {
-            color: #0f3460;
-            text-decoration: none;
-            display: block;
-            margin-bottom: 5px;
-            word-break: break-all;
-        }
-        
-        .full-description .episode-related a:hover {
-            text-decoration: underline;
-        }
-        
         .audio-player {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-top: 20px;
+            margin-top: 12px;
         }
         
         .audio-player audio {
             width: 100%;
-            height: 40px;
-            border-radius: 8px;
+            background-color: #0c0c0c;
+            border: 1px solid #202020;
         }
         
         .no-results {
-            text-align: center;
-            padding: 60px 20px;
-            color: #6c757d;
+            margin-top: 24px;
+            font-size: 0.85rem;
+            color: #6f757d;
+            display: none;
         }
         
-        footer {
-            background: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 40px 0;
+        .page-footer {
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid #1e1e1e;
+            font-size: 0.8rem;
+            color: #6f757d;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
         }
         
-        .footer-content {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 0 20px;
+        .page-footer span {
+            display: inline-block;
         }
         
         .rss-link {
-            display: inline-block;
-            background: #1a1a2e;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
+            color: #9cdcfe;
             text-decoration: none;
-            margin-top: 20px;
-            transition: background-color 0.3s;
         }
         
         .rss-link:hover {
-            background: #0f3460;
+            text-decoration: underline;
         }
         
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
+        @media (max-width: 600px) {
+            .page {
+                padding: 24px 14px 48px;
             }
-            
-            .subtitle {
-                font-size: 1rem;
-            }
-            
-            .meta-info {
-                gap: 15px;
-            }
-            
-            .episode-content {
-                padding: 20px;
-            }
-            
-
         }
     </style>
 </head>
 <body>
-    <header>
-        <div class="header-content">
-            ${feed.image ? `<img src="${escapeHtml(feed.image.url)}" alt="${escapeHtml(feed.image.title)}" class="podcast-image">` : ''}
-            <h1>${escapeHtml(feed.title)}</h1>
-            <p class="subtitle">${escapeHtml(feed.description)}</p>
-            <div class="meta-info">
-                <span>📊 ${episodes.length} episodes</span>
-                <span>👤 ${escapeHtml(feed.author)}</span>
-                <span>🌐 ${escapeHtml(feed.language)}</span>
-            </div>
-        </div>
-    </header>
+    <div class="page">
+        <header>
+            ${feed.image ? `<img src="${escapeHtml(feed.image.url)}" alt="${escapeHtml(feed.image.title)}" class="feed-cover">` : ''}
+            <h1 class="page-title">episodes</h1>
+            <p class="page-description">${pageIntro}</p>
+            <ul class="page-meta">
+                <li>${episodes.length} episodes</li>
+                ${feed.author ? `<li>${escapeHtml(feed.author)}</li>` : ''}
+                ${feed.language ? `<li>${escapeHtml(feed.language)}</li>` : ''}
+                ${feed.link ? `<li><a href="${escapeHtml(feed.link)}" class="meta-link">source feed</a></li>` : ''}
+            </ul>
+        </header>
 
-    <main>
-        <div class="container">
-            <div class="search-section">
+        <main>
+            <section class="search">
+                <label class="search-label" for="searchInput">Filter episodes</label>
                 <input 
                     type="text" 
                     class="search-input" 
-                    placeholder="Search episodes by title or description..."
+                    placeholder="Filter episodes..." 
                     id="searchInput"
                 >
-            </div>
+            </section>
 
-            <div class="episodes-grid" id="episodesGrid">
-                ${episodes.map((episode, index) => `
-                    <div class="episode-card" data-title="${escapeHtml(episode.title.toLowerCase())}" data-description="${escapeHtml(episode.description.toLowerCase())}">
-                        <div class="episode-content">
+            <section>
+                <ul class="episodes" id="episodesGrid">
+                    ${episodes.map((episode, index) => `
+                        <li class="episode-item" data-title="${escapeHtml((episode.title || '').toLowerCase())}" data-description="${escapeHtml((episode.description || '').toLowerCase())}">
                             <h2 class="episode-title">${escapeHtml(episode.title)}</h2>
                             <div class="episode-meta">
-                                <span class="episode-date">${formatDate(episode.pubDate)}</span>
-                                <span class="episode-duration">${formatDuration(episode.duration || episode['itunes:duration'])}</span>
+                                <span>${formatDate(episode.pubDate)}</span>
+                                <span>${formatDuration(episode.duration || episode['itunes:duration'])}</span>
                             </div>
-                            <div class="episode-description">
+                            <p class="episode-summary">
                                 ${truncateText(episode['itunes:summary'] || episode.description, 200)}
-                            </div>
-                            <button class="description-toggle" onclick="toggleDescription(${index})">
-                                Show Full Description
+                            </p>
+                            <button 
+                                class="description-toggle" 
+                                type="button" 
+                                data-target="description-${index}" 
+                                onclick="toggleDescription(${index})"
+                            >
+                                show details
                             </button>
                             <div class="full-description" id="description-${index}">
-                                <h3>${escapeHtml(episode.title)}</h3>
                                 <div>${extractHtmlFromDescription(episode.description) || escapeHtml(episode['itunes:summary'] || '')}</div>
                             </div>
                             <div class="audio-player">
-                                <audio 
-                                    controls 
-                                    preload="none"
-                                    style="width: 100%;"
-                                >
+                                <audio controls preload="none">
                                     <source src="${escapeHtml(episode.enclosure['@_url'] || '')}" type="${escapeHtml(episode.enclosure['@_type'] || 'audio/mpeg')}">
                                     Your browser does not support the audio element.
                                 </audio>
                             </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
+                        </li>
+                    `).join('')}
+                </ul>
 
-            <div class="no-results" id="noResults" style="display: none;">
-                <h3>No episodes found</h3>
-                <p>Try adjusting your search terms</p>
-            </div>
-        </div>
-    </main>
+                <div class="no-results" id="noResults">
+                    <p>no entries match that filter.</p>
+                </div>
+            </section>
+        </main>
 
-    <footer>
-        <div class="footer-content">
-            <p>Generated by Text-to-Pod CLI</p>
-            <p>Subscribe to the RSS feed to get new episodes automatically</p>
-            <a href="${escapeHtml(feed.link)}" class="rss-link">📡 Subscribe to RSS Feed</a>
-        </div>
-    </footer>
+        <footer class="page-footer">
+            <span>generated with text to pod</span>
+            <a href="${escapeHtml(feed.link)}" class="rss-link">subscribe to rss feed</a>
+        </footer>
+    </div>
 
     <script>
         // Toggle description visibility
         function toggleDescription(index) {
-            const description = document.getElementById(\`description-\${index}\`);
-            const button = document.querySelector(\`.episode-card:nth-child(\${index + 1}) .description-toggle\`);
-            
-            if (description.classList.contains('show')) {
-                description.classList.remove('show');
-                button.classList.remove('expanded');
-                button.textContent = 'Show Full Description';
-            } else {
-                description.classList.add('show');
-                button.classList.add('expanded');
-                button.textContent = 'Hide Full Description';
+            const targetId = \`description-\${index}\`;
+            const description = document.getElementById(targetId);
+            const button = document.querySelector(\`[data-target="\${targetId}"]\`);
+
+            if (!description || !button) {
+                return;
             }
+
+            const isVisible = description.classList.toggle('show');
+            button.textContent = isVisible ? 'hide details' : 'show details';
         }
 
         // Search functionality
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const episodes = document.querySelectorAll('.episode-card');
+        document.getElementById('searchInput').addEventListener('input', (event) => {
+            const searchTerm = event.target.value.toLowerCase();
+            const episodes = document.querySelectorAll('.episode-item');
             const noResults = document.getElementById('noResults');
             let visibleCount = 0;
             
             episodes.forEach(episode => {
-                const title = episode.dataset.title;
-                const description = episode.dataset.description;
+                const title = episode.dataset.title || '';
+                const description = episode.dataset.description || '';
                 
                 if (title.includes(searchTerm) || description.includes(searchTerm)) {
-                    episode.style.display = 'block';
+                    episode.style.display = '';
                     visibleCount++;
                 } else {
                     episode.style.display = 'none';

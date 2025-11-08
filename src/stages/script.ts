@@ -23,6 +23,7 @@ interface ScriptOutline {
   life_impact_lenses?: string[];
   vibe_descriptor?: string;
   interest_proxy?: string;
+  source_structure_notes?: string;
 }
 
 interface DescriptionNotes {

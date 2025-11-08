@@ -82,7 +82,7 @@ Default models are optimized for cost-effectiveness and quality:
 ### Voice Configuration
 
 The system now uses a single "scholar" voice instead of multiple personas:
-- `--scholar-voice`: Set the voice for the scholarly narration (default: "ash")
+- `--scholar-voice`: Set the voice for the scholarly narration (default: "sage")
 - Legacy voice options (`--operator-voice`, `--historian-voice`, `--narrator-voice`) are preserved for backward compatibility
 
 ### Episode Descriptions
@@ -123,3 +123,6 @@ Added tonal guidance to TTS prompts for style and cadence control beyond voice s
 - Metadata stage narrowed to neutral, evidence-only extraction (title, author, publication data, source type, related links) to keep later analysis unbiased.
 - Outline stage now records community signals, creator intent, vibe descriptors, attribution notes, and life-lens impacts mapped to a public evaluation profile.
 - Script, refinement, and description prompts were rewritten to deliver concise, attribution-heavy analysis that answers: what the source claims, who made it, how people are reacting, and how it might matter to the listener—without hype language or unsupported generalities.
+
+### Phase 8: Internal Monologue Triage *(November 2025)*
+Retuned outline, content, and refinement prompts for a first-person, low-energy narrator. Scripts now read like a firsthand walkthrough of the source, moving through a five-beat triage flow (headline assessment through deep read) with subtle closing sentences that keep momentum without calling out structure. Default voice shifted to `sage` to match the quieter delivery.
