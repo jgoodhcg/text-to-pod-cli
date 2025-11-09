@@ -20,6 +20,17 @@
 
 ## Future Enhancements
 
+### 🎯 Content Quality Improvements (High Priority)
+- **Goal**: Enhance podcast engagement through better content extraction and structure
+- **Planned Changes**:
+  - **Extract analogies from source**: Add requirement to find at least 3 specific analogies/metaphors from source content or comments instead of creating them
+  - **Remove artificial hooks**: Eliminate LLM-generated hook language that sounds unnatural
+  - **Enhanced people identification**: Strengthen requirements to identify specific people/groups affected (content creator, intended audience, comment demographics)
+  - **Sentence variety**: Add refinement rules for varied sentence length and rhythm
+  - **Detailed endings**: Replace forward-looking questions with concrete details and verbatim readings of interesting but less critical content
+- **Impact**: More engaging, authentic content that leverages existing source material
+- **Priority**: High - Directly improves listener experience
+
 ### Podcast Landing Page
 - **Goal**: Create a web presence for the podcast
 - **Options to consider**:
@@ -37,4 +48,16 @@
 
 ---
 
-*The core text-to-podcast pipeline is now complete with improved audio quality and cleaner codebase. Ready for production use and future enhancements.*
+## Implementation Status
+
+### 🔄 In Progress
+- **Content Quality Improvements**: Prompt updates planned to enhance engagement through better source content utilization
+
+### 📋 Next Steps
+1. Update SCRIPT_OUTLINE_SYSTEM to add analogy extraction and people identification requirements
+2. Update SCRIPT_CONTENT_SYSTEM to remove hook language and add sentence variety instructions  
+3. Update SCRIPT_REFINEMENT_SYSTEM to include sentence variety and detailed ending requirements
+4. Update corresponding USER prompts to match system changes
+5. Test with new episodes to validate improved engagement
+
+*The core text-to-podcast pipeline is complete with improved audio quality and cleaner codebase. Ready for production use and targeted content quality enhancements.*

@@ -219,6 +219,14 @@ Start from the factual metadata already gathered. Do not invent details—tie ev
 
 CRITICAL REQUIREMENT: You MUST use web search to research the topic thoroughly, including the original source content and context that reveals community response, creator background, and real-world implications.
 
+STAY FOCUSED ON THE SPECIFIC CONTENT:
+- This is a reading report about THIS SPECIFIC article/post/thread, not a general primer on the topic
+- Always anchor analysis to what the source actually says, how it's structured, and how people responded to it
+- Use phrases like "the article argues...", "the author claims...", "commenters pointed out..." rather than generic topic statements
+- When providing context, explicitly tie it back to understanding THIS content ("This matters because the author's framing differs from...")
+- Avoid: explaining the topic in general, providing background primers, or discussing what's typically true about the subject
+- Focus: what THIS piece contains, how THIS creator approached it, what THIS community said about it
+
 Your research should include:
 1. CRITICAL: The original source content (search for the exact URL from metadata)
 2. Creator or publisher background, incentives, and prior work
@@ -226,7 +234,9 @@ Your research should include:
 4. Technical details, cultural significance, and material consequences
 5. Community responses across multiple venues, capturing tone and representative quotes
 6. Power structures, competitive dynamics, and strategic interests
-7. Broader implications that map onto the evaluation profile’s life lenses
+7. Broader implications that map onto the evaluation profile's life lenses
+8. EXTRACT ANALOGIES: Find at least 3 specific analogies, metaphors, or comparisons FROM the source content or comments (do not create new ones)
+9. IDENTIFY PEOPLE: Clearly identify specific people/groups affected - the content creator (background, motivations), the intended audience (demographics, needs), and comment demographics (who is engaging and why)
 
 Structure the outline around this required sequence. Each section must include the highest-signal insight first and note what additional depth remains if someone keeps listening. Plan the flow so the final script can move through these beats without explicitly labeling them:
 1. **Headline assessment** – why the link tripped my radar, what curiosity it triggers.
@@ -269,6 +279,12 @@ Return a JSON object with:
   "life_impact_lenses": ["career/learning – how it matters", "creative practice – ...", "..."],
   "vibe_descriptor": "2-3 sentences capturing the overall mood and energy around the topic",
   "interest_proxy": "Verdict on likely resonance with the evaluation profile (hooks vs red_flags), with short rationale",
+  "source_analogies": ["analogy 1 from source or comments", "analogy 2 from source or comments", "analogy 3 from source or comments"],
+  "affected_people": {
+    "creator": "Description of content creator, their background and motivations",
+    "intended_audience": "Description of target audience, their demographics and needs",
+    "commenters": "Description of who is engaging in comments and why"
+  },
   "target_duration_minutes": 9
 }
 
@@ -283,6 +299,9 @@ Requirements:
 - Map insights onto the provided evaluation profile without exposing personal/sensitive data
 - Focus on creating natural flow while honoring the required section order
 - Identify specific ways to avoid repetition
+- CRITICAL: Extract at least 3 specific analogies/metaphors from the source content or comments - do not create new ones
+- CRITICAL: Clearly identify the creator, intended audience, and commenter demographics with specific details
+- CONTENT FOCUS: Treat this as analyzing THIS SPECIFIC content piece, not the topic in general. Anchor every insight to what the source actually says.
 - Respond with a single JSON object only`,
 
     SCRIPT_OUTLINE_USER: (title: string, summary: string) => `Create a detailed research outline for a 9-minute first-person briefing about: "${title}" - ${summary}
@@ -304,6 +323,11 @@ Structure your findings to support this exact section order, each with a quiet c
 5. Deep read – implications, comparisons, open questions, next steps.
 
 Front-load the most actionable signals. Make clear which insights surface immediately versus what only appears in the deeper read. Trace the literal reading flow: what the headline promised, what the lede and subhead delivered, how the body sections escalated or contradicted the setup, and where visuals or data shifted the tone. Pay special attention to identifying key players/actors in this space and what motivates them—financial interests, strategic goals, ideological positions, competitive pressures, etc. Also capture community sentiment, representative voices, and how the topic may affect the life lenses listed above.
+
+CRITICAL REQUIREMENTS:
+- Extract at least 3 specific analogies, metaphors, or comparisons from the source content or comments (do not invent new ones)
+- Clearly identify: the content creator (background, motivations), the intended audience (demographics, needs), and commenter demographics (who is engaging and why)
+- CONTENT FOCUS: This is a reading report about THIS SPECIFIC content, not a general topic explainer. Always tie analysis back to what the source actually says, how it's structured, and how people responded. Use attributions like "the article argues...", "the author claims...", "commenters said...". Avoid explaining the topic in general.
 
 Keep the language concrete and evidence-led. Note where claims come directly from the source versus outside commentary, and flag any major assertions that lack support. Identify repetition risks that might surface when translating the outline into the script, especially when recounting the reading experience versus the broader context.
 
@@ -332,8 +356,12 @@ VOICE AND DELIVERY:
 - Keep sentences efficient; avoid intensifiers, figurative language, and speculative leaps.
 - Let judgment surface through clear, evidence-backed statements.
 - Avoid phrases that announce transitions or mention sections ("next section," "now for quotes").
-- Narrate reading actions explicitly (“I paused on the methodology graphic…”, “Scrolling past the founder profile, I noticed…”).
+- Narrate reading actions explicitly ("I paused on the methodology graphic…", "Scrolling past the founder profile, I noticed…").
 - Let each section end naturally with a forward-looking sentence that hints at the remaining value—no labels or artificial prompts.
+- REMOVE ARTIFICIAL HOOKS: Eliminate LLM-generated hook language that sounds unnatural. Stick to direct observation and analysis.
+- SENTENCE VARIETY: Vary sentence length and rhythm throughout. Mix short, declarative statements with longer analytical sentences. Avoid repetitive patterns.
+- USE SOURCE ANALOGIES: Incorporate the specific analogies/metaphors extracted from the source content rather than creating new ones.
+- STAY FOCUSED ON THE CONTENT: This is about THIS specific article/post/thread, not the topic in general. Always anchor to what the source says ("the author argues...", "the piece claims...", "commenters noted..."). When providing context, explicitly tie it back to understanding this content. Avoid topic primers or general explanations.
 
 Return a JSON array of dialogue objects, for example:
 [
@@ -345,8 +373,12 @@ Requirements:
 - persona must be uppercase "SCHOLAR"
 - Each array item should be a natural paragraph or thought unit
 - Target approximately 1350 words (9 minutes at 150 wpm)
-- Incorporate the outline fields, especially community_signals, life_impact_lenses, and interest_proxy, aligned to each section
+- Incorporate the outline fields, especially community_signals, life_impact_lenses, interest_proxy, source_analogies, and affected_people
 - Preserve the calm, first-person analytical tone while delivering clear evaluation
+- Vary sentence length and rhythm - mix short and long sentences to maintain natural flow
+- Avoid artificial hook language - be direct and observational
+- Use the specific analogies from the source rather than inventing new ones
+- Analyze THIS specific content, not the topic generally - anchor all analysis to what the source actually contains
 - Respond with a single JSON array only`,
 
     SCRIPT_CONTENT_USER: (outline: string) => `Using this research outline, write a 9-minute first-person briefing that adheres to the calm, low-energy narrator philosophy:
@@ -360,8 +392,12 @@ Key expectations:
 - Let each section close with a single sentence that hints at the next layer without using labels or commands.
 - Treat this as a reading log: describe the headline hook, what the lede revealed, how each article section unfolded, where charts or sidebars shifted your take, and when you detoured into community reactions.
 - Attribute every claim, quote, or sentiment to its source or venue. Keep quotes faithful and compact.
-- Weave in the outline's vibe_descriptor, creator_profile, motivations_and_intent, community_signals, life_impact_lenses, interest_proxy, and evidence points as they fit each section.
+- Weave in the outline's vibe_descriptor, creator_profile, motivations_and_intent, community_signals, life_impact_lenses, interest_proxy, source_analogies, affected_people, and evidence points as they fit each section.
 - Use plain language, concrete nouns, and lean phrasing. Avoid intensifiers, figurative language, filler, or speculation.
+- VARY SENTENCE LENGTH: Mix short, punchy observations with longer analytical sentences. Avoid repetitive rhythm.
+- NO ARTIFICIAL HOOKS: Be direct and observational. Avoid LLM-generated phrases that sound unnatural or performative.
+- USE SOURCE ANALOGIES: Incorporate the specific analogies/metaphors from source_analogies rather than creating new ones.
+- CONTENT FOCUS: Analyze THIS specific content, not the topic in general. Anchor everything to what the source says, how it's structured, and how people responded. Use attributions like "the article argues...", "the author frames this as...", "commenters pushed back by...". Avoid explaining the topic itself.
 
 Each array element should be a natural paragraph or complete thought that flows logically into the next. Keep transitions minimal but smooth, and ensure nothing sounds like a list being read aloud.
 
@@ -386,6 +422,9 @@ REFINEMENT PRINCIPLES:
 - Make sure novelty, caveats, and quick actions remain explicit in the skimmed source section.
 - Let implications in the deep read stay grounded in evidence and the evaluation profile lens.
 - Strip intensifiers, metaphors, or speculative leaps that violate the minimal tone.
+- ENSURE SENTENCE VARIETY: Actively vary sentence length and rhythm. Mix short declarative statements with longer analytical ones. Break up repetitive patterns.
+- REMOVE ARTIFICIAL HOOKS: Cut any LLM-generated hook language that sounds unnatural or performative. Keep language direct and observational.
+- DETAILED ENDINGS: Replace forward-looking questions or vague speculation with concrete details. Include verbatim readings of interesting but less critical content from the source. Ground the ending in specific observations.
 
 SPECIFIC FIXES TO WATCH:
 - Backward-looking phrases like "as mentioned earlier."
@@ -394,8 +433,13 @@ SPECIFIC FIXES TO WATCH:
 - Any sentence that labels or names the sections (e.g., "headline assessment," "next up, quotes").
 - Generic topic summaries that aren't anchored to something encountered while reading.
 - Quotes without clear venue labels.
+- Tangents into general topic explanations rather than focusing on THIS specific content.
+- Missing attributions - every claim should trace back to the source, comments, or specific research.
 - Claims missing attribution.
 - Paragraphs that duplicate the same idea or stall momentum.
+- Repetitive sentence structures or rhythms (e.g., multiple sentences of similar length in a row).
+- Artificial hook language that sounds like marketing copy.
+- Vague or speculative endings - replace with concrete details from the source.
 
 Return the refined script as a JSON array of dialogue objects:
 [
@@ -404,12 +448,16 @@ Return the refined script as a JSON array of dialogue objects:
 
 Requirements:
 - Maintain the original insights and evidence
-- Preserve the five-section order and keep each section’s closing sentence subtle and forward-looking
+- Preserve the five-section order and keep each section's closing sentence subtle and forward-looking
 - Keep the narration first-person, calm, dry, and analytical
 - Improve flow and eliminate repetition
 - Each array element should flow naturally into the next
 - Target approximately 1350 words (9 minutes at 150 wpm)
 - Keep explicit mention of community signals, life lenses, and the interest verdict
+- Actively vary sentence length and rhythm throughout the script
+- Remove any artificial hook language - be direct and observational
+- Ensure the ending includes concrete details from the source rather than vague speculation
+- Ensure all analysis is anchored to THIS specific content, not the topic in general - use attributions throughout
 - Respond with a single JSON array only`,
 
     SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Refine this first-person briefing to sharpen the calm, low-energy narrator voice while preserving the mandated structure:
@@ -424,8 +472,12 @@ Goals:
 - Keep the five sections in order and ensure each closes with a single, understated sentence that points to what comes next.
 - Maintain first-person, pragmatic narration with no humor, hype, or rhetorical filler.
 - Tighten sentences, cut repetition, and smooth transitions without sounding formulaic.
-- Ensure community_signals, life_impact_lenses, motivations, and the interest proxy verdict remain clear and evidence-backed.
+- Ensure community_signals, life_impact_lenses, motivations, source_analogies, affected_people, and the interest proxy verdict remain clear and evidence-backed.
 - Remove intensifiers, speculative leaps, and any claims lacking attribution.
+- VARY SENTENCE LENGTH: Actively mix short and long sentences. Break up repetitive rhythms.
+- REMOVE ARTIFICIAL HOOKS: Cut any unnatural LLM-generated phrases. Be direct and observational.
+- DETAILED ENDING: Replace vague forward-looking questions with concrete details and verbatim readings of interesting but less critical content from the source.
+- CONTENT FOCUS: Cut any tangents into general topic explanations. Keep everything anchored to THIS specific content - what it says, how it's structured, and how people responded. Ensure attributions throughout.
 
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
