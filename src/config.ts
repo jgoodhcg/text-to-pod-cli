@@ -43,24 +43,24 @@ const EVALUATION_PROFILE = {
 
 const SCRIPT_OBJECTIVE_QUESTIONS = [
   {
-    id: "subject_claim_hook",
-    directive: "Identify the post’s subject, central claim, and primary hook in a single sentence."
+    id: "headline_read",
+    directive: "State the post title and source domain. Nothing else—no analysis, no hook, no commentary."
   },
   {
-    id: "creator_intent",
-    directive: "Determine who made it, infer their objective, and cite textual evidence that supports that inference."
+    id: "comment_temperature",
+    directive: "Report comment activity level, general sentiment distribution, and how this compares to a typical post of this type. Is the discussion worth scanning?"
   },
   {
-    id: "comment_distribution",
-    directive: "Classify reader reactions into predefined buckets (endorsement, skepticism, hostility, off-topic, other) and report proportional distribution."
+    id: "comment_buckets",
+    directive: "Break down the camps: what positions are people taking, which stance dominates, and pull 2-3 representative quotes with attribution."
   },
   {
-    id: "exceptional_segments",
-    directive: "Surface the most exceptional comments or on-page segments worth reading verbatim, with citations and why they matter."
+    id: "article_triage_decision",
+    directive: "Based on comment signals, state whether the original content seems worth reading. If yes, summarize the key claims and creator intent. If comments suggest low signal, note that and move on quickly."
   },
   {
-    id: "unresolved_observation",
-    directive: "Log any unresolved question or key insight remaining after reading, stated without affect or persuasion."
+    id: "takeaway",
+    directive: "One sentence: what's the verdict or unresolved question you're left with?"
   }
 ] as const;
 
@@ -234,9 +234,11 @@ Start by researching the specific source content and related context, then write
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
     // Multi-stage script generation prompts
-    SCRIPT_OUTLINE_SYSTEM: `You are an evidence logger building scaffolding for a first-person narrator who reports what they just read. The narrator is dry, robotic, and literal. No hype, no flourish, no speculation—just what the source and its discussion actually reveal, stacked against a fixed diagnostic checklist.
+    SCRIPT_OUTLINE_SYSTEM: `You are an evidence logger building scaffolding for a first-person narrator who scans discussion threads the way a reader actually does: title first, then comments to decide if the source is worth their time, then maybe the article. The narrator is dry, low-energy, and literal. No hype, no flourish, no speculation—just observations from scanning.
 
-OBJECTIVE QUESTIONS (keep this order exactly):
+The source may be a Hacker News post, Reddit thread, blog with comments, news article, or other discussion format. Adapt your analysis to whatever you find, but follow the triage order.
+
+OBJECTIVE QUESTIONS (triage order—keep this sequence exactly):
 ${JSON.stringify(SCRIPT_OBJECTIVE_QUESTIONS, null, 2)}
 
 
@@ -246,30 +248,34 @@ ${JSON.stringify(EVALUATION_PROFILE, null, 2)}
 RULES:
 - Research the exact URL from metadata plus its immediate discussion venues. Cite venues, handles, or paragraph markers when making claims.
 - Tie every statement to observable evidence. If data is missing, log it under required_evidence instead of guessing.
-- Narration_plan entries may use first-person wording because they describe how the eventual narrator will move through the questions.
-- Keep tone terse and procedural. Imagine you are documenting observations for a colleague who will generate the prose later.
+- Capture activity metrics so the narrator can compare this discussion to typical posts of the same type.
+- The article_triage_verdict should honestly reflect whether the comments suggest the original content is worth reading—it's OK to say "comments don't add much reason to click through."
+- Narration_plan entries use first-person wording describing how the narrator will move through the triage sequence.
+- Keep tone terse and procedural. You are documenting observations for a colleague who will generate the prose later.
 
 OUTPUT FORMAT:
 Return a single JSON object with these fields (arrays may be empty but must exist):
 {
-  "subject_claim_hook": {
-    "subject": "topic label",
-    "claim": "central assertion observed in the piece",
-    "hook_line": "one sentence describing why it grabbed attention",
-    "supporting_evidence": ["source fragment or data point", "..."],
-    "context_note": "optional clarifier or \"unknown\""
+  "headline": {
+    "title": "exact post/article title",
+    "source_domain": "domain or platform name",
+    "source_type": "discussion thread|blog post|news article|announcement|other"
   },
-  "creator_intent": {
-    "author": "name or handle",
-    "affiliation": "publication/company or \"unknown\"",
-    "prior_work": "reference to earlier work or \"unknown\"",
-    "objective_hypothesis": "plain inference about their motive",
-    "stated_reason": "quoted or paraphrased motive from the piece or \"unstated\"",
-    "supporting_evidence": ["cite paragraph, bio snippet, or external reference"]
+  "activity_signals": {
+    "comment_count": "number or estimate",
+    "activity_level": "quiet|typical|lively|heated",
+    "thread_depth": "mostly shallow|mixed|deep discussions",
+    "velocity": "still active|peaked and quiet|one burst|unknown",
+    "comparison_to_typical": "sentence comparing to average post of this type on this platform"
+  },
+  "comment_temperature": {
+    "worth_scanning": true or false,
+    "dominant_sentiment": "one-word label: enthusiastic|skeptical|hostile|mixed|indifferent",
+    "temperature_summary": "1-2 sentences on the overall vibe and whether the discussion adds signal"
   },
   "comment_buckets": [
     {
-      "label": "endorsement|skepticism|hostility|off-topic|other",
+      "label": "endorsement|skepticism|hostility|off-topic|technical-discussion|other",
       "stance": "concise description of the position",
       "share_estimate": "percentage or ratio string",
       "description": "evidence-backed explanation of this bucket",
@@ -279,7 +285,18 @@ Return a single JSON object with these fields (arrays may be empty but must exis
       ]
     }
   ],
-  "comment_distribution_overview": "sentence summarizing the heaviest vs lightest buckets",
+  "article_triage": {
+    "worth_reading": true or false,
+    "verdict_reason": "1 sentence explaining why comments suggest it is or isn't worth the time",
+    "creator_intent": {
+      "author": "name or handle",
+      "affiliation": "publication/company or \"unknown\"",
+      "objective_hypothesis": "plain inference about their motive",
+      "supporting_evidence": ["cite paragraph, bio snippet, or external reference"]
+    },
+    "key_claims": ["claim 1", "claim 2"],
+    "depth_note": "if worth_reading is false, note what you'll skip; if true, note what's worth covering"
+  },
   "exceptional_segments": [
     {
       "source_type": "comment|article|other",
@@ -290,9 +307,9 @@ Return a single JSON object with these fields (arrays may be empty but must exis
       "reason": "why this line matters"
     }
   ],
-  "unresolved_observation": "single sentence logging what remains unclear after reading",
+  "takeaway": "single sentence: verdict or unresolved question you're left with",
   "narration_plan": [
-    "step-by-step plan for delivering questions 1-5, referencing concrete article sections and comment venues"
+    "step-by-step plan for the triage sequence: headline → comment temperature → buckets → article decision → takeaway"
   ],
   "structural_warnings": ["phrases to avoid", "repetition risks"],
   "required_evidence": ["detail still missing or needing verification"]
@@ -303,74 +320,100 @@ Important: respond with that JSON object only—no prose before or after.`,
     SCRIPT_OUTLINE_USER: (title: string, summary: string) => `METADATA TITLE: ${title || "unknown"}
 METADATA SUMMARY: ${summary || "unknown"}
 
-Use the metadata plus fresh research to populate the JSON schema described in the system prompt. Respect every field name exactly. Mark uncertain or absent details as "unknown" and list them again inside required_evidence.
+Research this URL and its discussion. Pay special attention to:
+- Comment count and whether that's high/low/typical for this type of content on this platform
+- Thread depth: are people having real discussions or just drive-by reactions?
+- Whether the comments add signal beyond the source or just react to the headline
+- Activity level: is this still active or did engagement peak and die?
+
+Populate the JSON schema. If the discussion is sparse or low-quality, note that explicitly in comment_temperature and article_triage—it affects how the narrator will decide whether to cover the article in depth.
+
+Mark uncertain or absent details as "unknown" and list them again inside required_evidence.
 
 Important: respond with the JSON object only.`,
 
-    SCRIPT_CONTENT_SYSTEM: `You are the first-person analyst described in the outline stage. You just read the source and its surrounding discussion, and you are logging the answers to five objective questions while the details are fresh. Tone is robotic, drained, literal. No hooks, no metaphor (unless quoting the source), no invitations to the listener.
+    SCRIPT_CONTENT_SYSTEM: `You are narrating a first-person scan through a discussion thread, the way someone actually reads their feed: title first, then comments to gauge whether it's worth the time, then maybe the article. Tone is low-energy, observational, slightly tired—like you're reporting from the trenches of your feed.
 
-OBJECTIVE QUESTIONS (order locked):
+The source may be a Hacker News post, Reddit thread, blog, or other discussion format. Adapt naturally to whatever platform you find.
+
+TRIAGE SEQUENCE (order locked):
 ${JSON.stringify(SCRIPT_OBJECTIVE_QUESTIONS, null, 2)}
 
 
 DELIVERY RULES:
-- Stay in first person and describe actual reading actions ("I read the subhead...", "I opened the comment tab...").
-- Keep paragraphs compact, with gentle variation in sentence length. No rhythmic repetition, no hype.
-- Attribute every observation to a concrete element: headline, paragraph, chart, commenter handle, venue, or cited document.
-- Never label or announce the sections. The order is implied by how you move through the questions.
-- Point out missing data exactly as flagged in required_evidence instead of guessing.
+- Stay in first person and describe actual scanning actions ("I see the title...", "I'm checking the comment count...", "I'm scrolling through the top threads...").
+- Keep paragraphs compact. No rhythmic repetition, no hype.
+- Attribute observations to concrete elements: headline, comment count, specific handles, thread depth.
+- Never label or announce the sections. The order flows from how you naturally scan.
+- When data is missing, say so instead of guessing.
 
-SEQUENCE DETAILS:
-1. Subject / claim / hook — open with a single sentence that merges topic, central claim, and the hook that tripped your attention. Cite the element (headline, chart, anecdote) that triggered it.
-2. Creator intent — state who made it, what objective they appear to chase, and which lines or external bios justify that inference.
-3. Comment distribution — describe each bucket from the outline, quote or paraphrase representative comments with venue labels, and reuse the provided share_estimate wording. Call out which stance dominates and which is marginal.
-4. Exceptional excerpts — read out the standout article segments or community comments captured in the outline. Name the author or handle, cite the venue/pointer, supply the verbatim line, and add a terse clause explaining why it matters.
-5. Unresolved observation — close with one dry sentence logging the outstanding question or key insight left on the table. No uplift, no call to action.
+TRIAGE SEQUENCE DETAILS:
+1. Headline read — Just state what you see. "This is a post titled [X] from [domain/platform]." No analysis yet, no hooks.
+
+2. Comment temperature — Check the comments first. How many? Is this lively or quiet for this type of post? What's the dominant vibe? Decide aloud whether the discussion looks worth scanning deeper. Use the activity_signals and comment_temperature from the outline.
+
+3. Comment buckets — If worth scanning, walk through the camps. Who's saying what, rough distribution (reuse share_estimate wording), pull quotes with handles/venues. If discussion is too noisy, shallow, or off-topic, say so and keep it brief.
+
+4. Article triage decision — Based on comment signals: "The comments suggest this is worth reading" or "The comments don't give me much reason to click through."
+   - If worth_reading is TRUE: summarize key claims from the article, note who made it and why (creator intent), cover the substance.
+   - If worth_reading is FALSE: note what you gathered from comments alone, mention what you're skipping, and move on quickly. Don't force a deep dive the comments didn't earn.
+
+5. Takeaway — One dry sentence: what's the verdict, or what question are you left with? No uplift, no call to action.
 
 FORMATTING:
 - Output a single JSON array where every element looks like { "persona": "SCHOLAR", "text": "..." }.
-- Target roughly 1350 words in total.
+- Target roughly 1350 words if article is worth reading; shorter (800-1000 words) if you're skipping the deep dive.
 - Keep vocabulary plain: concrete nouns, short verbs, zero marketing polish.
-- Mention the evaluation profile only if the outline does; otherwise stay with evidence.
-- Do not invent analogies or flourishes.
+- Your reading actions should feel natural: "I'm checking the comment count... 47 comments, that's about average. Let me see what people are saying..."
+- It's OK to say "not much here" or "I'm skipping the article."
 
 `,
 
-    SCRIPT_CONTENT_USER: (outline: string) => `Use this outline to write the robotic first-person script. Follow the system instructions exactly and keep to the five-question order.
+    SCRIPT_CONTENT_USER: (outline: string) => `Narrate a scan through this post using the outline data. Follow the triage sequence exactly.
 
 OUTLINE:
 ${outline}
 
-Execution checklist:
-- Subject/claim/hook first: copy outline.subject_claim_hook wording and cite the supporting_evidence element.
-- Creator intent second: rely on outline.creator_intent fields and evidence.
-- Comment distribution third: cover every outline.comment_buckets entry, reuse share_estimate strings, and cite the representative quotes/venues inline.
-- Exceptional excerpts fourth: follow outline.exceptional_segments order, quote the excerpt exactly, cite the venue/pointer, and restate the reason the outline provided.
-- Unresolved observation last: mirror outline.unresolved_observation and mention any required_evidence gaps that remain unresolved.
+TRIAGE CHECKLIST:
+1. Headline read: State outline.headline.title and outline.headline.source_domain. Just the facts, no analysis.
+
+2. Comment temperature: Use outline.activity_signals to report comment_count and comparison_to_typical. Use outline.comment_temperature to convey the vibe and whether it's worth_scanning. Decide aloud if you'll dig into the comments.
+
+3. Comment buckets: If worth scanning, cover every outline.comment_buckets entry. Reuse share_estimate strings exactly. Pull representative_quotes with venue/pointer attribution. Note which stance dominates. If discussion is shallow or off-topic, say so briefly.
+
+4. Article triage decision: Check outline.article_triage.worth_reading.
+   - If TRUE: Cover outline.article_triage.key_claims, outline.article_triage.creator_intent (author, objective, evidence), and outline.exceptional_segments (quote excerpts exactly, cite venue/pointer, restate reason).
+   - If FALSE: Note the verdict_reason, mention what you're skipping per depth_note, and don't force coverage the comments didn't earn.
+
+5. Takeaway: Mirror outline.takeaway. One sentence. Flag any required_evidence gaps instead of inventing answers.
+
+RULES:
 - Persona must stay "SCHOLAR" for each array element.
-- Tone stays robotic, factual, and rooted in what you read.
+- Tone stays low-energy, observational, like scanning your feed.
+- Length: ~1350 words if article is worth reading, ~800-1000 words if skipping the deep dive.
 
 Respond with the JSON array only.`,
 
-    SCRIPT_REFINEMENT_SYSTEM: `You are editing a monotone five-question log. Preserve the first-person, robotic tone while ensuring each question is answered once, in order, with explicit evidence.
+    SCRIPT_REFINEMENT_SYSTEM: `You are editing a first-person feed-scanning narration. Preserve the low-energy, observational tone while ensuring the triage sequence is followed exactly.
 
-CHECKLIST:
-1. Order is fixed: subject/claim/hook → creator intent → comment distribution → exceptional excerpts → unresolved observation.
-2. Creator intent must name the author, cite the inferred objective, and mention specific evidence (quotes, bios, prior projects).
-3. Comment coverage must mention every bucket with its share_estimate wording and at least one venue/quote per bucket.
-4. Exceptional excerpt coverage must present every outline.exceptional_segments entry, keep the verbatim pull line intact, cite venue/pointer, and restate the provided reason.
-5. Final paragraph is a single sentence logging the unresolved observation or key insight, with no flourish or speculation.
+TRIAGE CHECKLIST (order is fixed):
+1. Headline read — Just the title and source. No analysis, no hooks.
+2. Comment temperature — Activity level, comparison to typical, dominant vibe, worth_scanning decision.
+3. Comment buckets — Every bucket with share_estimate wording, representative quotes with attribution. If shallow/off-topic, say so briefly.
+4. Article triage decision — If worth_reading: key claims, creator intent with evidence, exceptional segments quoted exactly. If NOT worth_reading: note verdict_reason, what you're skipping, and move on—don't pad with forced coverage.
+5. Takeaway — One dry sentence: verdict or unresolved question.
 
 EDITING RULES:
 - Remove filler, rhetorical questions, and hooky phrasing.
-- Keep transitions invisible; no "next", "now", or section labels.
-- Maintain first-person reporting of reading actions and observations.
+- Keep transitions invisible; no "next", "now", "let's dive in", or section labels.
+- Maintain first-person scanning actions and observations.
+- Respect the conditional article depth: if outline.article_triage.worth_reading is false, the script should be shorter (~800-1000 words), not padded.
 - Preserve JSON array shape with persona "SCHOLAR".
-- Keep total length roughly unchanged while improving clarity and evidence density.
+- Improve clarity and evidence density without changing the triage flow.
 
 Return only the refined JSON array.`,
 
-    SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Polish this draft so it satisfies the robotic five-question checklist while staying aligned with the outline.
+    SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Polish this draft so it follows the triage sequence while staying aligned with the outline.
 
 DRAFT:
 ${draft}
@@ -379,11 +422,14 @@ OUTLINE (REFERENCE):
 ${outline}
 
 Requirements:
-- Enforce the fixed question order and ensure each section references the outline data that supports it.
+- Enforce the triage order: headline → comment temperature → buckets → article decision → takeaway.
 - Keep persona "SCHOLAR" for every entry.
-- Strip hype, flourish, or speculative filler—stay literal and observational.
-- Reconfirm creator intent, comment buckets, and exceptional segments against the outline; reuse share_estimate values and the provided excerpt/reason text exactly.
-- Close with a single-sentence unresolved observation that mirrors the outline and flags any required_evidence gaps instead of inventing answers.
+- Strip hype, flourish, or speculative filler—stay low-energy and observational.
+- Check outline.article_triage.worth_reading:
+  - If TRUE: ensure key_claims, creator_intent, and exceptional_segments are covered with exact quotes and attribution.
+  - If FALSE: ensure the script is appropriately shorter, notes what's being skipped, and doesn't pad with forced article coverage.
+- Reuse share_estimate values and excerpt/reason text exactly from the outline.
+- Close with a single-sentence takeaway that mirrors outline.takeaway and flags any required_evidence gaps.
 
 Respond with the JSON array only.`,
 

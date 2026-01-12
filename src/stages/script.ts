@@ -5,21 +5,24 @@ import { dirname } from 'path';
 import { CONFIG } from '../config.js';
 import { extractJsonArray, sanitizeJsonText } from '../utils.js';
 
-interface OutlineSubjectClaimHook {
-  subject: string;
-  claim: string;
-  hook_line: string;
-  supporting_evidence: string[];
-  context_note?: string;
+interface OutlineHeadline {
+  title: string;
+  source_domain: string;
+  source_type: string;
 }
 
-interface OutlineCreatorIntent {
-  author: string;
-  affiliation?: string;
-  prior_work?: string;
-  objective_hypothesis: string;
-  stated_reason?: string;
-  supporting_evidence: string[];
+interface OutlineActivitySignals {
+  comment_count: string;
+  activity_level: 'quiet' | 'typical' | 'lively' | 'heated';
+  thread_depth: 'mostly shallow' | 'mixed' | 'deep discussions';
+  velocity: 'still active' | 'peaked and quiet' | 'one burst' | 'unknown';
+  comparison_to_typical: string;
+}
+
+interface OutlineCommentTemperature {
+  worth_scanning: boolean;
+  dominant_sentiment: string;
+  temperature_summary: string;
 }
 
 interface OutlineCommentQuote {
@@ -37,6 +40,21 @@ interface OutlineCommentBucket {
   representative_quotes: OutlineCommentQuote[];
 }
 
+interface OutlineCreatorIntent {
+  author: string;
+  affiliation?: string;
+  objective_hypothesis: string;
+  supporting_evidence: string[];
+}
+
+interface OutlineArticleTriage {
+  worth_reading: boolean;
+  verdict_reason: string;
+  creator_intent: OutlineCreatorIntent;
+  key_claims: string[];
+  depth_note: string;
+}
+
 interface OutlineExceptionalSegment {
   source_type: 'comment' | 'article' | 'other';
   venue: string;
@@ -47,12 +65,13 @@ interface OutlineExceptionalSegment {
 }
 
 interface ScriptOutline {
-  subject_claim_hook: OutlineSubjectClaimHook;
-  creator_intent: OutlineCreatorIntent;
+  headline: OutlineHeadline;
+  activity_signals: OutlineActivitySignals;
+  comment_temperature: OutlineCommentTemperature;
   comment_buckets: OutlineCommentBucket[];
-  comment_distribution_overview: string;
+  article_triage: OutlineArticleTriage;
   exceptional_segments: OutlineExceptionalSegment[];
-  unresolved_observation: string;
+  takeaway: string;
   narration_plan: string[];
   structural_warnings?: string[];
   required_evidence?: string[];
