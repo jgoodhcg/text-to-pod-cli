@@ -5,25 +5,57 @@ import { dirname } from 'path';
 import { CONFIG } from '../config.js';
 import { extractJsonArray, sanitizeJsonText } from '../utils.js';
 
+interface OutlineSubjectClaimHook {
+  subject: string;
+  claim: string;
+  hook_line: string;
+  supporting_evidence: string[];
+  context_note?: string;
+}
+
+interface OutlineCreatorIntent {
+  author: string;
+  affiliation?: string;
+  prior_work?: string;
+  objective_hypothesis: string;
+  stated_reason?: string;
+  supporting_evidence: string[];
+}
+
+interface OutlineCommentQuote {
+  venue: string;
+  quote: string;
+  pointer?: string;
+}
+
+interface OutlineCommentBucket {
+  label: string;
+  stance: string;
+  share_estimate: string;
+  description: string;
+  evidence: string[];
+  representative_quotes: OutlineCommentQuote[];
+}
+
+interface OutlineExceptionalSegment {
+  source_type: 'comment' | 'article' | 'other';
+  venue: string;
+  author: string;
+  excerpt: string;
+  pointer?: string;
+  reason: string;
+}
+
 interface ScriptOutline {
-  research_summary: string;
-  main_themes: string[];
-  narrative_flow: string;
-  key_insights: string[];
-  repetition_warnings: string[];
-  evidence_points: string[];
-  transition_points: string[];
-  target_duration_minutes: number;
-  key_players?: string[];
-  power_dynamics?: string;
-  community_signals?: string[];
-  creator_profile?: string;
-  motivations_and_intent?: string;
-  attribution_notes?: string[];
-  life_impact_lenses?: string[];
-  vibe_descriptor?: string;
-  interest_proxy?: string;
-  source_structure_notes?: string;
+  subject_claim_hook: OutlineSubjectClaimHook;
+  creator_intent: OutlineCreatorIntent;
+  comment_buckets: OutlineCommentBucket[];
+  comment_distribution_overview: string;
+  exceptional_segments: OutlineExceptionalSegment[];
+  unresolved_observation: string;
+  narration_plan: string[];
+  structural_warnings?: string[];
+  required_evidence?: string[];
 }
 
 interface DescriptionNotes {
