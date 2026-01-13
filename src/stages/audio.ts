@@ -104,7 +104,7 @@ export async function runAudio(context: Context): Promise<void> {
         model: 'gpt-4o-mini-tts',
         voice,
         input: chunkText,
-        instructions: 'Speak in a measured, contemplative scholarly tone with lower energy. Avoid dramatic intonation or excitement. Use thoughtful pacing and calm delivery suitable for academic analysis.'
+        instructions: 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.'
       });
 
       const buffer = Buffer.from(await response.arrayBuffer());

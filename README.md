@@ -16,6 +16,8 @@ text-to-pod-cli turns a single URL into a narrated podcast episode by walking th
 
 Intro/outro bumpers default to `resources/intro.mp3`; override them with `--intro-bumper` / `--outro-bumper` or leave the files missing to skip them entirely.
 
+When running publish commands, prefer `npm run dev -- --run-stage publish ...` so the latest TypeScript changes are used without relying on stale `dist/` output.
+
 All stage state (including chunk metadata, feed paths, and multi-stage generation details) is tracked in the single `episodes` table; the episode directory only stores `script.json` and audio artifacts.
 
 ## Common Commands
@@ -37,7 +39,7 @@ npm start -- --episode-dir 20251022-1430-f353a601 --run-stage audio --dry-run
 npm start -- --episode-dir 20251022-1430-f353a601 --run-stage script --force
 
 # Publish only, skipping uploads but previewing the RSS summary
-npm start -- --episode-dir 20251022-1430-f353a601 --run-stage publish --no-publish
+npm run dev -- --episode-dir 20251022-1430-f353a601 --run-stage publish --no-publish
 
 # Customize models for multi-stage script generation
 npm start -- --url https://example.com/article \
@@ -50,7 +52,7 @@ npm start -- --url https://example.com/article \
 npm start -- --url https://example.com/article --scholar-voice alloy
 
 # Publish to a different Spaces bucket/prefix/artwork
-npm start -- --episode-dir <id> --run-stage publish \
+npm run dev -- --episode-dir <id> --run-stage publish \
   --spaces-origin https://mybucket.nyc3.digitaloceanspaces.com \
   --spaces-feed-key podcast/podcast.xml \
   --spaces-audio-prefix podcast/episodes \

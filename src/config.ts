@@ -43,24 +43,24 @@ const EVALUATION_PROFILE = {
 
 const SCRIPT_OBJECTIVE_QUESTIONS = [
   {
-    id: "headline_read",
-    directive: "State the post title and source domain. Nothing else—no analysis, no hook, no commentary."
+    id: "orientation",
+    directive: "State the date, what platform you're looking at, the post title, how long ago it was posted, and current comment count. Just the facts you see on screen."
   },
   {
-    id: "comment_temperature",
-    directive: "Report comment activity level, general sentiment distribution, and how this compares to a typical post of this type. Is the discussion worth scanning?"
+    id: "activity_read",
+    directive: "What do the numbers tell you? Is this high/typical/low engagement? Rough comments per hour? How does this compare to a typical post of this type on this platform?"
   },
   {
-    id: "comment_buckets",
-    directive: "Break down the camps: what positions are people taking, which stance dominates, and pull 2-3 representative quotes with attribution."
+    id: "comment_scan",
+    directive: "Walk through the comments like you're scrolling. What are the most upvoted ones about? What are the longest threads arguing about? Any heated/extreme takes? What are the level-headed responses saying? Pull 2-3 representative quotes with attribution."
   },
   {
-    id: "article_triage_decision",
-    directive: "Based on comment signals, state whether the original content seems worth reading. If yes, summarize the key claims and creator intent. If comments suggest low signal, note that and move on quickly."
+    id: "worth_it_decision",
+    directive: "Based on the comments, is the actual content worth clicking through to read? If yes, give a rough outline of what it covers. If no, say why and move on. If the discussion is more interesting than the content, note that."
   },
   {
-    id: "takeaway",
-    directive: "One sentence: what's the verdict or unresolved question you're left with?"
+    id: "wrap_up",
+    directive: "One casual sentence: what's your takeaway or what question are you left with?"
   }
 ] as const;
 
@@ -74,7 +74,7 @@ export const CONFIG = {
   DEFAULT_SCRIPT_DESCRIPTION_MODEL: "gpt-5.1",
 
   // Default voices
-  DEFAULT_SCHOLAR_VOICE: "sage",
+  DEFAULT_SCHOLAR_VOICE: "echo",
 
   // Public evaluation profile used to anchor analysis
   EVALUATION_PROFILE,
@@ -85,7 +85,7 @@ export const CONFIG = {
   DEFAULT_MAX_AUDIO_CHARS: 600,
   DEFAULT_OUTPUT_ROOT: "resources/episodes",
   DEFAULT_INTRO_BUMPER: "resources/intro.mp3",
-  DEFAULT_OUTRO_BUMPER: "resources/intro.mp3",
+  DEFAULT_OUTRO_BUMPER: "resources/outro.mp3",
   DEFAULT_SPACES_ORIGIN: "https://tbtr.nyc3.digitaloceanspaces.com",
   DEFAULT_SPACES_FEED_KEY: "podcast/podcast.xml",
   DEFAULT_SPACES_AUDIO_PREFIX: "podcast/episodes",
@@ -234,9 +234,11 @@ Start by researching the specific source content and related context, then write
 Important: Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
     // Multi-stage script generation prompts
-    SCRIPT_OUTLINE_SYSTEM: `You are an evidence logger building scaffolding for a first-person narrator who scans discussion threads the way a reader actually does: title first, then comments to decide if the source is worth their time, then maybe the article. The narrator is dry, low-energy, and literal. No hype, no flourish, no speculation—just observations from scanning.
+    SCRIPT_OUTLINE_SYSTEM: `You are building an evidence scaffold for a narrator who reads forum posts like a normal person: sees the headline, checks the comment count to gauge if it's worth their time, scans the comments to get a sense of the discussion, then maybe clicks through to the actual content if the comments make it seem worthwhile.
 
-The source may be a Hacker News post, Reddit thread, blog with comments, news article, or other discussion format. Adapt your analysis to whatever you find, but follow the triage order.
+The narrator speaks casually, like they're thinking out loud while scrolling. They might say "okay", "let me see", "hmm". They react to what they find. They're not performing—just processing their feed out loud.
+
+The source may be a Hacker News post, Reddit thread, blog with comments, news article, or other discussion format. Adapt your analysis to whatever you find, but follow the browsing order.
 
 OBJECTIVE QUESTIONS (triage order—keep this sequence exactly):
 ${JSON.stringify(SCRIPT_OBJECTIVE_QUESTIONS, null, 2)}
@@ -249,9 +251,9 @@ RULES:
 - Research the exact URL from metadata plus its immediate discussion venues. Cite venues, handles, or paragraph markers when making claims.
 - Tie every statement to observable evidence. If data is missing, log it under required_evidence instead of guessing.
 - Capture activity metrics so the narrator can compare this discussion to typical posts of the same type.
-- The article_triage_verdict should honestly reflect whether the comments suggest the original content is worth reading—it's OK to say "comments don't add much reason to click through."
-- Narration_plan entries use first-person wording describing how the narrator will move through the triage sequence.
-- Keep tone terse and procedural. You are documenting observations for a colleague who will generate the prose later.
+- The article_triage verdict should honestly reflect whether the comments suggest the original content is worth reading—it's OK to say "comments don't add much reason to click through."
+- Narration_plan entries should describe the natural browsing flow the narrator will follow: orientation → activity read → comment scan → worth-it decision → wrap-up.
+- Keep tone terse and procedural. You are documenting observations for a colleague who will generate the casual narration later.
 
 OUTPUT FORMAT:
 Return a single JSON object with these fields (arrays may be empty but must exist):
@@ -309,7 +311,7 @@ Return a single JSON object with these fields (arrays may be empty but must exis
   ],
   "takeaway": "single sentence: verdict or unresolved question you're left with",
   "narration_plan": [
-    "step-by-step plan for the triage sequence: headline → comment temperature → buckets → article decision → takeaway"
+    "step-by-step plan for the browsing flow: orientation (date, title, stats) → activity read → comment scan → worth-it decision → wrap-up"
   ],
   "structural_warnings": ["phrases to avoid", "repetition risks"],
   "required_evidence": ["detail still missing or needing verification"]
@@ -320,100 +322,151 @@ Important: respond with that JSON object only—no prose before or after.`,
     SCRIPT_OUTLINE_USER: (title: string, summary: string) => `METADATA TITLE: ${title || "unknown"}
 METADATA SUMMARY: ${summary || "unknown"}
 
-Research this URL and its discussion. Pay special attention to:
+Research this URL and its discussion. Gather the data the narrator needs to browse through this post naturally:
+
 - Comment count and whether that's high/low/typical for this type of content on this platform
+- How long ago it was posted
 - Thread depth: are people having real discussions or just drive-by reactions?
 - Whether the comments add signal beyond the source or just react to the headline
 - Activity level: is this still active or did engagement peak and die?
+- What the most upvoted comments are about
+- What the longest threads are debating
+- Any extreme/heated takes vs level-headed responses
+- Whether the comments make the actual content seem worth reading
 
-Populate the JSON schema. If the discussion is sparse or low-quality, note that explicitly in comment_temperature and article_triage—it affects how the narrator will decide whether to cover the article in depth.
+Populate the JSON schema. If the discussion is sparse or low-quality, note that explicitly—the narrator might just say "not much here" and keep it short. If the comments don't give a reason to read the content, that's a valid outcome.
 
 Mark uncertain or absent details as "unknown" and list them again inside required_evidence.
 
 Important: respond with the JSON object only.`,
 
-    SCRIPT_CONTENT_SYSTEM: `You are narrating a first-person scan through a discussion thread, the way someone actually reads their feed: title first, then comments to gauge whether it's worth the time, then maybe the article. Tone is low-energy, observational, slightly tired—like you're reporting from the trenches of your feed.
+    SCRIPT_CONTENT_SYSTEM: `You are narrating your real-time process of browsing a discussion post, thinking out loud as you go. This mirrors how people actually read forums: see a headline, check the comments to gauge if it's worth their time, maybe skim the content if the comments are interesting.
+
+The tone is casual, unpolished, like someone muttering to themselves while scrolling. Low-energy but engaged when something catches your attention. You're not performing—you're just describing what you see and your immediate reactions.
 
 The source may be a Hacker News post, Reddit thread, blog, or other discussion format. Adapt naturally to whatever platform you find.
 
-TRIAGE SEQUENCE (order locked):
-${JSON.stringify(SCRIPT_OBJECTIVE_QUESTIONS, null, 2)}
+BROWSING FLOW (this is how you actually read):
 
+1. Orientation — Start with the date and what you're looking at.
+   "Okay, it's [date]. Looking at a [platform] post. The title is [exact title]. Posted [time ago], sitting at [comment count] comments."
 
-DELIVERY RULES:
-- Stay in first person and describe actual scanning actions ("I see the title...", "I'm checking the comment count...", "I'm scrolling through the top threads...").
-- Keep paragraphs compact. No rhythmic repetition, no hype.
-- Attribute observations to concrete elements: headline, comment count, specific handles, thread depth.
-- Never label or announce the sections. The order flows from how you naturally scan.
-- When data is missing, say so instead of guessing.
+2. Quick activity read — What do the numbers tell you?
+   "That's [high/typical/low] engagement for this type of post. [X] comments in [Y] hours works out to roughly [Z] per hour, which is [notable/average/quiet]."
 
-TRIAGE SEQUENCE DETAILS:
-1. Headline read — Just state what you see. "This is a post titled [X] from [domain/platform]." No analysis yet, no hooks.
+3. Comment scan — Describe what you see as you scroll through.
+   - "Checking the comments... the most upvoted ones are about [topic]."
+   - "The longest conversation threads are arguing about [issue]."
+   - "There are some heated takes like [quote or paraphrase]."
+   - "The more level-headed responses are pointing out [observation]."
+   - "I'm seeing a lot of [sentiment]—maybe [percentage] of the comments."
+   - Pull actual quotes: "One person says, '[exact quote]'—that's pretty representative."
 
-2. Comment temperature — Check the comments first. How many? Is this lively or quiet for this type of post? What's the dominant vibe? Decide aloud whether the discussion looks worth scanning deeper. Use the activity_signals and comment_temperature from the outline.
+4. Worth-it decision — Based on the comments, do you care about the content?
+   - If YES: "The comments are making me curious about the actual content. Let me look at it..."
+     Then: "So the content is about [brief outline]. The main argument is [X]. It ends with [Y]."
+   - If NO: "Honestly, the comments aren't giving me much reason to click through. Seems like [reason]. Moving on."
+   - If MIXED: "The discussion is more interesting than the content itself seems to be. Here's what I gathered from the comments without reading the full thing..."
 
-3. Comment buckets — If worth scanning, walk through the camps. Who's saying what, rough distribution (reuse share_estimate wording), pull quotes with handles/venues. If discussion is too noisy, shallow, or off-topic, say so and keep it brief.
+5. Wrap-up — One casual sentence about your takeaway or what question you're left with.
 
-4. Article triage decision — Based on comment signals: "The comments suggest this is worth reading" or "The comments don't give me much reason to click through."
-   - If worth_reading is TRUE: summarize key claims from the article, note who made it and why (creator intent), cover the substance.
-   - If worth_reading is FALSE: note what you gathered from comments alone, mention what you're skipping, and move on quickly. Don't force a deep dive the comments didn't earn.
+VOICE NOTES:
+- Use filler words sparingly but naturally: "okay", "so", "let me see", "hmm"
+- React to what you find: "that's interesting", "not sure about that", "fair point"
+- It's fine to express mild opinions or skepticism
+- Admit when something is boring, shallow, or not worth your time
+- Don't be afraid of short observations: "Not much here."
+- Quote real comments with attribution when possible
 
-5. Takeaway — One dry sentence: what's the verdict, or what question are you left with? No uplift, no call to action.
+SCENARIO HANDLING:
+- Low activity post: "Only [X] comments after [Y] hours. Pretty quiet. Let me see if there's anything worth noting... [scan briefly, note if anything stands out or just move on]"
+- Heated/controversial: "This one's spicy. [X] comments and people are really going at it about [topic]..."
+- Technical discussion: "Lots of deep technical threads here. People are debating [specifics]..."
+- Shallow/drive-by reactions: "Most of these are just one-liners reacting to the headline. Not much substance to dig into."
+- Uninteresting: "I'm not finding much here. The discussion is [generic/repetitive/off-topic]. Moving on without reading the full thing."
 
 FORMATTING:
 - Output a single JSON array where every element looks like { "persona": "SCHOLAR", "text": "..." }.
-- Target roughly 1350 words if article is worth reading; shorter (800-1000 words) if you're skipping the deep dive.
-- Keep vocabulary plain: concrete nouns, short verbs, zero marketing polish.
-- Your reading actions should feel natural: "I'm checking the comment count... 47 comments, that's about average. Let me see what people are saying..."
-- It's OK to say "not much here" or "I'm skipping the article."
+- Target roughly 1200-1400 words for posts worth diving into; 600-900 words for ones you're skipping or that are low activity.
+- Keep vocabulary plain and conversational.
 
 `,
 
-    SCRIPT_CONTENT_USER: (outline: string) => `Narrate a scan through this post using the outline data. Follow the triage sequence exactly.
+    SCRIPT_CONTENT_USER: (outline: string) => `Narrate your browsing process through this post, thinking out loud. Use the outline data but make it sound natural.
 
 OUTLINE:
 ${outline}
 
-TRIAGE CHECKLIST:
-1. Headline read: State outline.headline.title and outline.headline.source_domain. Just the facts, no analysis.
+BROWSING PROCESS:
 
-2. Comment temperature: Use outline.activity_signals to report comment_count and comparison_to_typical. Use outline.comment_temperature to convey the vibe and whether it's worth_scanning. Decide aloud if you'll dig into the comments.
+1. ORIENTATION: Start with today's date and what you're looking at.
+   - Use outline.headline for title and source_domain
+   - Mention the comment count from outline.activity_signals
+   - Note how long ago it was posted if available
 
-3. Comment buckets: If worth scanning, cover every outline.comment_buckets entry. Reuse share_estimate strings exactly. Pull representative_quotes with venue/pointer attribution. Note which stance dominates. If discussion is shallow or off-topic, say so briefly.
+2. ACTIVITY READ: What do the numbers suggest?
+   - Use outline.activity_signals.comparison_to_typical
+   - Note the activity_level and velocity
+   - Calculate rough comments-per-hour if the data is there
 
-4. Article triage decision: Check outline.article_triage.worth_reading.
-   - If TRUE: Cover outline.article_triage.key_claims, outline.article_triage.creator_intent (author, objective, evidence), and outline.exceptional_segments (quote excerpts exactly, cite venue/pointer, restate reason).
-   - If FALSE: Note the verdict_reason, mention what you're skipping per depth_note, and don't force coverage the comments didn't earn.
+3. COMMENT SCAN: Walk through what you're seeing in the comments.
+   - Use outline.comment_temperature for the overall vibe
+   - Go through each outline.comment_buckets entry naturally:
+     * "The most upvoted comments are..." / "A lot of people are saying..."
+     * "The longest threads are debating..."
+     * "Some of the more extreme takes..."
+     * "The level-headed responses..."
+   - Pull representative_quotes exactly, with attribution
+   - Use share_estimate values naturally ("maybe 40% of comments are...")
+   - If outline.comment_temperature.worth_scanning is false, keep this brief
 
-5. Takeaway: Mirror outline.takeaway. One sentence. Flag any required_evidence gaps instead of inventing answers.
+4. WORTH-IT DECISION: Based on comments, do you read the content?
+   - Check outline.article_triage.worth_reading
+   - If TRUE:
+     * "The comments are making me want to look at this..."
+     * Cover outline.article_triage.key_claims as a rough outline
+     * Note the creator_intent (who made it, why)
+     * Use outline.exceptional_segments for standout quotes
+   - If FALSE:
+     * "The comments aren't giving me a reason to click through..."
+     * State the verdict_reason
+     * Note what you're skipping
+     * Keep it short—don't pad
 
-RULES:
-- Persona must stay "SCHOLAR" for each array element.
-- Tone stays low-energy, observational, like scanning your feed.
-- Length: ~1350 words if article is worth reading, ~800-1000 words if skipping the deep dive.
+5. WRAP-UP: One casual sentence using outline.takeaway
+   - Flag any required_evidence gaps honestly
+
+VOICE:
+- Persona stays "SCHOLAR" for each array element
+- Casual, thinking-out-loud tone
+- Use filler words naturally: "okay", "let me see", "so"
+- React to what you find
+- Length: ~1200-1400 words if diving in, ~600-900 words if not worth it
 
 Respond with the JSON array only.`,
 
-    SCRIPT_REFINEMENT_SYSTEM: `You are editing a first-person feed-scanning narration. Preserve the low-energy, observational tone while ensuring the triage sequence is followed exactly.
+    SCRIPT_REFINEMENT_SYSTEM: `You are editing a first-person "browsing out loud" narration. Preserve the casual, thinking-aloud tone while tightening the prose and ensuring the browsing flow is natural.
 
-TRIAGE CHECKLIST (order is fixed):
-1. Headline read — Just the title and source. No analysis, no hooks.
-2. Comment temperature — Activity level, comparison to typical, dominant vibe, worth_scanning decision.
-3. Comment buckets — Every bucket with share_estimate wording, representative quotes with attribution. If shallow/off-topic, say so briefly.
-4. Article triage decision — If worth_reading: key claims, creator intent with evidence, exceptional segments quoted exactly. If NOT worth_reading: note verdict_reason, what you're skipping, and move on—don't pad with forced coverage.
-5. Takeaway — One dry sentence: verdict or unresolved question.
+BROWSING FLOW (order is fixed):
+1. Orientation — Date, platform, title, comment count, time posted. Just what you see.
+2. Activity read — What the numbers suggest. Comments per hour, comparison to typical.
+3. Comment scan — Walk through the camps: most upvoted, longest threads, extreme takes, level-headed responses. Pull quotes with attribution.
+4. Worth-it decision — Do the comments make you want to read the content? If yes, outline the content. If no, say so and keep it short.
+5. Wrap-up — One casual sentence: takeaway or remaining question.
 
 EDITING RULES:
-- Remove filler, rhetorical questions, and hooky phrasing.
-- Keep transitions invisible; no "next", "now", "let's dive in", or section labels.
-- Maintain first-person scanning actions and observations.
-- Respect the conditional article depth: if outline.article_triage.worth_reading is false, the script should be shorter (~800-1000 words), not padded.
+- KEEP natural filler words ("okay", "so", "let me see", "hmm") but remove repetitive or excessive ones.
+- KEEP casual reactions ("that's interesting", "fair point", "not sure about that").
+- REMOVE performative phrasing, rhetorical questions aimed at the listener, and any "podcast host" energy.
+- REMOVE section announcements ("first", "next", "now let's look at").
+- Ensure it sounds like someone muttering to themselves while scrolling, not presenting to an audience.
+- Respect the conditional depth: if outline.article_triage.worth_reading is false, the script should be shorter (~600-900 words). Don't pad.
 - Preserve JSON array shape with persona "SCHOLAR".
-- Improve clarity and evidence density without changing the triage flow.
+- Tighten sentences but don't make them formal.
 
 Return only the refined JSON array.`,
 
-    SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Polish this draft so it follows the triage sequence while staying aligned with the outline.
+    SCRIPT_REFINEMENT_USER: (draft: string, outline: string) => `Polish this draft while preserving the "thinking out loud while browsing" feel.
 
 DRAFT:
 ${draft}
@@ -422,14 +475,17 @@ OUTLINE (REFERENCE):
 ${outline}
 
 Requirements:
-- Enforce the triage order: headline → comment temperature → buckets → article decision → takeaway.
+- Enforce the browsing flow: orientation (date, title, stats) → activity read → comment scan → worth-it decision → wrap-up.
 - Keep persona "SCHOLAR" for every entry.
-- Strip hype, flourish, or speculative filler—stay low-energy and observational.
+- Preserve casual filler ("okay", "so", "let me see") and natural reactions, but tighten where repetitive.
+- Strip any "podcast host" energy—no rhetorical questions to the listener, no hype, no flourish.
 - Check outline.article_triage.worth_reading:
-  - If TRUE: ensure key_claims, creator_intent, and exceptional_segments are covered with exact quotes and attribution.
-  - If FALSE: ensure the script is appropriately shorter, notes what's being skipped, and doesn't pad with forced article coverage.
+  - If TRUE: ensure key_claims, creator_intent, and exceptional_segments are covered with exact quotes and attribution. ~1200-1400 words.
+  - If FALSE: keep it short (~600-900 words), note what you're skipping, don't pad.
 - Reuse share_estimate values and excerpt/reason text exactly from the outline.
-- Close with a single-sentence takeaway that mirrors outline.takeaway and flags any required_evidence gaps.
+- Close with a casual one-sentence takeaway that mirrors outline.takeaway.
+
+The result should sound like someone mumbling through their feed, not performing for an audience.
 
 Respond with the JSON array only.`,
 
