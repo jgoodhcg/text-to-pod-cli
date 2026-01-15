@@ -12,6 +12,7 @@ Pipeline resilience and content quality improvements for the five-stage script f
 ## Planned Work Units
 - [Arbitrary Text Document Input](./arbitrary-text-input.md)
 - [Codebase Cleanup](./codebase-cleanup.md)
+- [Convert to Bun](./convert-to-bun.md)
 
 ## Key Links
 - [README.md](../README.md)
