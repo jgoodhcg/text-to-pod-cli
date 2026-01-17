@@ -4,14 +4,15 @@
 **Status:** Planned
 **Problem/Intent:** Replace Node.js runtime with Bun for improved startup time, better performance, and simplified toolchain. Bun's native TypeScript support and faster package manager can significantly improve the development experience.
 **Constraints:** Must maintain compatibility with existing dependencies (better-sqlite3, commander, fast-xml-parser), preserve all existing functionality, ensure SQLite database compatibility, keep API integrations working (OpenAI endpoints).
-**Proposed Approach:** Migrate in phases - first ensure dependencies are Bun-compatible, update package.json scripts and runtime configuration, test all CLI commands, verify SQLite database operations, validate OpenAI API calls, and ensure ffmpeg/s3cmd integration still works.
-**Open Questions:** Will better-sqlite3 require native compilation adjustments for Bun? Are there any Node.js-specific APIs in use that Bun doesn't support?
+**Proposed Approach:** Migrate in phases - first ensure dependencies are Bun-compatible, update package.json scripts and runtime configuration. **Crucially, replace `better-sqlite3` with Bun's native `bun:sqlite` for better performance and fewer dependencies.** Test all CLI commands, verify SQLite database operations, validate OpenAI API calls, and ensure ffmpeg/s3cmd integration still works.
+**Open Questions:** Are there any Node.js-specific APIs in use that Bun doesn't support? Will the migration from `better-sqlite3` APIs to `bun:sqlite` APIs be 1:1 or require adapter logic?
 
 ## Plan
 - Audit dependencies for Bun compatibility
 - Update package.json to use Bun instead of Node in scripts
-- Replace any Node.js-specific APIs with Bun-compatible alternatives
-- Update build process if needed (Bun may simplify TypeScript compilation)
+- **Replace `better-sqlite3` with native `bun:sqlite` implementation in `src/database.ts`**
+- Replace any other Node.js-specific APIs with Bun-compatible alternatives
+- Update build process (Bun simplifies TypeScript compilation)
 - Test all CLI commands end-to-end
 - Verify SQLite database read/write operations
 - Validate OpenAI API integration
