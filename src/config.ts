@@ -319,8 +319,9 @@ Return a single JSON object with these fields (arrays may be empty but must exis
 
 Important: respond with that JSON object only—no prose before or after.`,
 
-    SCRIPT_OUTLINE_USER: (title: string, summary: string) => `METADATA TITLE: ${title || "unknown"}
+    SCRIPT_OUTLINE_USER: (title: string, summary: string, url: string) => `METADATA TITLE: ${title || "unknown"}
 METADATA SUMMARY: ${summary || "unknown"}
+TARGET URL: ${url || "unknown"}
 
 Research this URL and its discussion. Gather the data the narrator needs to browse through this post naturally:
 

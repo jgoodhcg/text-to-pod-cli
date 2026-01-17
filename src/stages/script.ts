@@ -115,6 +115,7 @@ async function generateOutline(
   openai: OpenAI,
   title: string,
   summary: string,
+  url: string,
   model: string
 ): Promise<{ outline: ScriptOutline; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 1: Generating research outline...');
@@ -123,7 +124,7 @@ async function generateOutline(
     openai,
     model,
     CONFIG.PROMPTS.SCRIPT_OUTLINE_SYSTEM,
-    CONFIG.PROMPTS.SCRIPT_OUTLINE_USER(title, summary)
+    CONFIG.PROMPTS.SCRIPT_OUTLINE_USER(title, summary, url)
   );
 
   if (!content) {
@@ -397,11 +398,12 @@ export async function runScript(context: Context): Promise<void> {
   const openai = new OpenAI();
   const title = existing.metadata_title || '';
   const summary = existing.metadata_summary || '';
+  const url = existing.original_url || existing.normalized_url || '';
 
   try {
     // Stage 1: Generate outline
     const { outline } = 
-      await generateOutline(openai, title, summary, context.options.scriptOutlineModel);
+      await generateOutline(openai, title, summary, url, context.options.scriptOutlineModel);
 
     // Stage 2: Generate content
     const { draft } = 
