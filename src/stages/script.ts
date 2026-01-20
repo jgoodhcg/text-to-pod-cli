@@ -3,7 +3,7 @@ import OpenAI from 'openai';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { CONFIG } from '../config.js';
-import { extractJsonArray, sanitizeJsonText } from '../utils.js';
+import { extractJsonArray, extractJsonObject, sanitizeJsonText } from '../utils.js';
 
 interface OutlineHeadline {
   title: string;
@@ -135,13 +135,12 @@ async function generateOutline(
   
   let outline: ScriptOutline;
   try {
-    // Extract JSON object (not array) for outline
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const jsonContentRaw = extractJsonObject(content);
+    if (!jsonContentRaw) {
       throw new Error('Could not find JSON object in outline response');
     }
     
-    const jsonContent = sanitizeJsonText(jsonMatch[0]);
+    const jsonContent = sanitizeJsonText(jsonContentRaw);
     outline = JSON.parse(jsonContent);
   } catch (parseError) {
     console.error('[script] Outline parse error:', parseError);
@@ -289,13 +288,12 @@ async function extractDescriptionNotes(
   
   let notes: DescriptionNotes;
   try {
-    // Extract JSON object (not array) for description notes
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const jsonContentRaw = extractJsonObject(content);
+    if (!jsonContentRaw) {
       throw new Error('Could not find JSON object in description notes response');
     }
     
-    const jsonContent = sanitizeJsonText(jsonMatch[0]);
+    const jsonContent = sanitizeJsonText(jsonContentRaw);
     notes = JSON.parse(jsonContent);
   } catch (parseError) {
     console.error('[script] Description notes parse error:', parseError);

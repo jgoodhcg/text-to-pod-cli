@@ -313,12 +313,14 @@ Return a single JSON object with these fields (arrays may be empty but must exis
   "narration_plan": [
     "step-by-step plan for the browsing flow: orientation (date, title, stats) → activity read → comment scan → worth-it decision → wrap-up"
   ],
-  "structural_warnings": ["phrases to avoid", "repetition risks"],
-  "required_evidence": ["detail still missing or needing verification"]
-}
-
-Important: respond with that JSON object only—no prose before or after.`,
-
+      "structural_warnings": ["phrases to avoid", "repetition risks"],
+    "required_evidence": ["detail still missing or needing verification"]
+  }
+  
+  Important:
+  1. Return A SINGLE valid JSON object. Do not split the response into multiple objects.
+  2. Verify JSON syntax: ensure all quotes are escaped properly and there are NO trailing commas.
+  3. Do not include any text before or after the JSON.`,
     SCRIPT_OUTLINE_USER: (title: string, summary: string, url: string) => `METADATA TITLE: ${title || "unknown"}
 METADATA SUMMARY: ${summary || "unknown"}
 TARGET URL: ${url || "unknown"}
