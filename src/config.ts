@@ -162,7 +162,7 @@ Keep the suggested title and summary understated and conversational—avoid sens
 PERSONA
 - SCHOLAR: A single measured voice that combines historical perspective, technical understanding, and reflective analysis. The scholar speaks with the calm authority of someone who has spent decades studying patterns of human activity, technological change, and cultural development. The delivery is thoughtful and deliberate, never rushed or sensational.
 
-Target runtime: about 9 minutes of audio with a contemplative, measured delivery. Engagement comes from intellectual depth and careful observation, not dramatic pacing.
+Target runtime: variable, based on the depth of the content. Engagement comes from intellectual depth and careful observation, not dramatic pacing.
 
 CRITICAL REQUIREMENT: You MUST use web search to research the topic thoroughly, including the original source content and related context.
 
@@ -191,7 +191,7 @@ Requirements:
 - MUST incorporate real information from web search of the original source
 - CRITICAL: Base the script on the ACTUAL content from the provided URL, not generic topics
 - Include representative voices and perspectives from the actual discussion
-- Ensure the combined dialogue comfortably fills ~9 minutes through thoughtful development
+- Ensure the combined dialogue fully explores the topic without padding
 - Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
     SCRIPT_USER: (title: string, summary: string) => `Create a scholarly 9-minute podcast script for: "${title}" - ${summary}
@@ -390,8 +390,8 @@ SCENARIO HANDLING:
 
 FORMATTING:
 - Output a single JSON array where every element looks like { "persona": "SCHOLAR", "text": "..." }.
-- Target roughly 1200-1400 words for posts worth diving into; 600-900 words for ones you're skipping or that are low activity.
 - Keep vocabulary plain and conversational.
+- AVOID: "this is very Hacker News", "right at the intersection of X and Y", or similar meta-commentary about the platform vibe. Stick to the actual discussion.
 
 `,
 
@@ -444,7 +444,7 @@ VOICE:
 - Casual, thinking-out-loud tone
 - Use filler words naturally: "okay", "let me see", "so"
 - React to what you find
-- Length: ~1200-1400 words if diving in, ~600-900 words if not worth it
+- No fixed length target—take as much space as the content justifies, but don't pad.
 
 Respond with the JSON array only.`,
 
@@ -463,7 +463,8 @@ EDITING RULES:
 - REMOVE performative phrasing, rhetorical questions aimed at the listener, and any "podcast host" energy.
 - REMOVE section announcements ("first", "next", "now let's look at").
 - Ensure it sounds like someone muttering to themselves while scrolling, not presenting to an audience.
-- Respect the conditional depth: if outline.article_triage.worth_reading is false, the script should be shorter (~600-900 words). Don't pad.
+- Respect the conditional depth: if outline.article_triage.worth_reading is false, the script should be shorter. Don't pad.
+- AVOID: "this is very Hacker News", "right at the intersection of X and Y", or generic platform commentary.
 - Preserve JSON array shape with persona "SCHOLAR".
 - Tighten sentences but don't make them formal.
 
@@ -483,8 +484,8 @@ Requirements:
 - Preserve casual filler ("okay", "so", "let me see") and natural reactions, but tighten where repetitive.
 - Strip any "podcast host" energy—no rhetorical questions to the listener, no hype, no flourish.
 - Check outline.article_triage.worth_reading:
-  - If TRUE: ensure key_claims, creator_intent, and exceptional_segments are covered with exact quotes and attribution. ~1200-1400 words.
-  - If FALSE: keep it short (~600-900 words), note what you're skipping, don't pad.
+  - If TRUE: ensure key_claims, creator_intent, and exceptional_segments are covered with exact quotes and attribution.
+  - If FALSE: keep it concise, note what you're skipping, don't pad.
 - Reuse share_estimate values and excerpt/reason text exactly from the outline.
 - Close with a casual one-sentence takeaway that mirrors outline.takeaway.
 
