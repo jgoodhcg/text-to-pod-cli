@@ -71,9 +71,9 @@ export function buildContext(options: any): Context {
     context.episodeId = episodeId;
     
     // Set up paths
-    const episodeDir = join(options.outputRoot || 'resources/episodes', episodeId);
     context.paths.episodeDir = episodeDir;
     context.paths.scriptFile = join(episodeDir, 'script.json');
+    context.paths.outlineFile = join(episodeDir, 'outline.json');
     context.paths.chunksDir = join(episodeDir, 'audio', 'chunks');
     context.paths.mergedFile = join(episodeDir, 'audio', 'episode.mp3');
     context.paths.feedFile = join(episodeDir, 'podcast.xml');
@@ -110,6 +110,7 @@ export function buildContext(options: any): Context {
     const episodeDir = join(options.outputRoot || CONFIG.DEFAULT_OUTPUT_ROOT, episodeId);
     context.paths.episodeDir = episodeDir;
     context.paths.scriptFile = join(episodeDir, 'script.json');
+    context.paths.outlineFile = join(episodeDir, 'outline.json');
     context.paths.chunksDir = join(episodeDir, 'audio', 'chunks');
     context.paths.mergedFile = join(episodeDir, 'audio', 'episode.mp3');
     context.paths.feedFile = join(episodeDir, 'podcast.xml');

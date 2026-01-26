@@ -38,6 +38,7 @@ export interface Context {
   paths: {
     episodeDir?: string;
     scriptFile?: string;
+    outlineFile?: string;
     chunksDir?: string;
     mergedFile?: string;
     feedFile?: string;

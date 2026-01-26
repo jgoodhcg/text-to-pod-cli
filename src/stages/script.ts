@@ -403,6 +403,12 @@ export async function runScript(context: Context): Promise<void> {
     const { outline } = 
       await generateOutline(openai, title, summary, url, context.options.scriptOutlineModel);
 
+    // Save outline to file
+    if (context.paths.outlineFile) {
+        writeFileSync(context.paths.outlineFile, JSON.stringify(outline, null, 2));
+        console.log('[script] Saved research outline to', context.paths.outlineFile);
+    }
+
     // Stage 2: Generate content
     const { draft } = 
       await generateContent(openai, outline, context.options.scriptContentModel);
