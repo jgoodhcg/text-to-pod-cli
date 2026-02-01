@@ -71,6 +71,7 @@ export function buildContext(options: any): Context {
     context.episodeId = episodeId;
     
     // Set up paths
+    const episodeDir = join(options.outputRoot || 'resources/episodes', episodeId);
     context.paths.episodeDir = episodeDir;
     context.paths.scriptFile = join(episodeDir, 'script.json');
     context.paths.outlineFile = join(episodeDir, 'outline.json');
