@@ -1,17 +1,21 @@
-# Title
+---
+title: "Work Unit Title"
+status: idea
+description: "One-line summary of what this accomplishes"
+tags: []
+priority: medium
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
 
-## Work Unit Summary
-**Status:** 
-**Problem/Intent:** 
-**Constraints:** 
-**Proposed Approach:** 
-**Open Questions:** 
+# Work Unit Title
 
-## Plan
-- 
+## Problem / Intent
 
-## Milestones
-- [ ] 
+## Constraints
+
+## Proposed Approach
+
+## Open Questions
 
 ## Notes
-- 

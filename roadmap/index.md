@@ -1,20 +1,18 @@
-# Roadmap Index
+---
+title: "Text-to-Pod CLI Roadmap"
+goal: "Deliver a reliable CLI that turns URLs into scholarly podcast episodes with dependable content access and consistently strong narration."
+---
 
-## Goal
-Deliver a reliable CLI that turns URLs into scholarly podcast episodes with dependable content access and consistently strong narration.
+# Roadmap
 
 ## Current Focus
 Pipeline resilience and content quality improvements for the five-stage script flow.
 
-## Active Work Units
-- [Pipeline Resilience and Script Quality](./pipeline-resilience-and-quality.md)
+## Work Units
+- `pipeline-resilience-and-quality.md`
+- `arbitrary-text-input.md`
+- `codebase-cleanup.md`
+- `convert-to-bun.md`
 
-## Planned Work Units
-- [Arbitrary Text Document Input](./arbitrary-text-input.md)
-- [Codebase Cleanup](./codebase-cleanup.md)
-- [Convert to Bun](./convert-to-bun.md)
-
-## Key Links
-- [README.md](../README.md)
-- [requirements.md](../requirements.md)
-- [AGENTS.md](../AGENTS.md)
+## Quick Ideas
+- (none yet)

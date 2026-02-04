@@ -1,15 +1,18 @@
 # Roadmap System
 
+This project uses the roadmap system defined in `AGENT_BLUEPRINT.md`.
+
 ## Structure
-- `roadmap/index.md`: Canonical snapshot (Goal, Current Focus, Active Work Units, Key Links).
-- `roadmap/_template.md`: Boilerplate for new work unit files.
-- `roadmap/*.md`: Work units with narrative detail.
+- `roadmap/index.md`: Project overview and directory of work units.
+- `roadmap/_template.md`: Starting point for new work unit files.
+- `roadmap/*.md`: Individual work units (each with YAML frontmatter).
 - `roadmap/archived/`: Completed or dropped work units.
 
 ## Rules
-- One work unit per session.
-- Status appears only inside work unit files.
-- Use headings plus concise bullet lists for plans, decisions, and notes.
-- Checklists are allowed for task tracking when they add clarity.
-- Archive work units instead of deleting them.
-- Keep `roadmap/index.md` short and free of task lists.
+- `roadmap/index.md` existence identifies a compatible project.
+- Every work unit file must begin with valid YAML frontmatter.
+- Status lives in frontmatter, not in prose.
+- Small ideas can live as bullets in `index.md`; promote to files when they need detail.
+- When a work unit reaches `done` or `dropped`, move it to `archived/`.
+- Update the `updated` field whenever you modify a work unit.
+- Use consistent tag prefixes: `area/`, `type/`, `tech/`.
