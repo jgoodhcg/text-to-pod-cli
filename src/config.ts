@@ -66,12 +66,12 @@ const SCRIPT_OBJECTIVE_QUESTIONS = [
 
 export const CONFIG = {
   // Default models
-  DEFAULT_METADATA_MODEL: "gpt-5.1",
-  DEFAULT_SCRIPT_MODEL: "gpt-5.1",
-  DEFAULT_SCRIPT_OUTLINE_MODEL: "gpt-5.1",
-  DEFAULT_SCRIPT_CONTENT_MODEL: "gpt-5.1", 
-  DEFAULT_SCRIPT_REFINEMENT_MODEL: "gpt-5.1",
-  DEFAULT_SCRIPT_DESCRIPTION_MODEL: "gpt-5.1",
+  DEFAULT_METADATA_MODEL: "gpt-5.2",
+  DEFAULT_SCRIPT_MODEL: "gpt-5.2",
+  DEFAULT_SCRIPT_OUTLINE_MODEL: "gpt-5.2",
+  DEFAULT_SCRIPT_CONTENT_MODEL: "gpt-5.2",
+  DEFAULT_SCRIPT_REFINEMENT_MODEL: "gpt-5.2",
+  DEFAULT_SCRIPT_DESCRIPTION_MODEL: "gpt-5.2",
 
   // Default voices
   DEFAULT_SCHOLAR_VOICE: "echo",
@@ -162,7 +162,7 @@ Keep the suggested title and summary understated and conversational—avoid sens
 PERSONA
 - SCHOLAR: A single measured voice that combines historical perspective, technical understanding, and reflective analysis. The scholar speaks with the calm authority of someone who has spent decades studying patterns of human activity, technological change, and cultural development. The delivery is thoughtful and deliberate, never rushed or sensational.
 
-Target runtime: variable, based on the depth of the content. Engagement comes from intellectual depth and careful observation, not dramatic pacing.
+Target runtime: 4-6 minutes when content is rich; 2-4 minutes when thin. If evidence is limited, merge or skip sections rather than padding. Engagement comes from intellectual depth and careful observation, not dramatic pacing.
 
 CRITICAL REQUIREMENT: You MUST use web search to research the topic thoroughly, including the original source content and related context.
 
@@ -187,6 +187,7 @@ Requirements:
 - persona must be uppercase "SCHOLAR"
 - text must be a non-empty string
 - Follow the 1-8 structure with natural transitions between sections
+- Keep it concise and avoid restating the same point across multiple sections
 - Each array item must be an object containing at least "persona" and "text"
 - MUST incorporate real information from web search of the original source
 - CRITICAL: Base the script on the ACTUAL content from the provided URL, not generic topics
@@ -194,7 +195,8 @@ Requirements:
 - Ensure the combined dialogue fully explores the topic without padding
 - Respond with a single JSON array only. Do not include prose, headings, citations, apologies, or commentary outside the array.`,
 
-    SCRIPT_USER: (title: string, summary: string) => `Create a scholarly 9-minute podcast script for: "${title}" - ${summary}
+    SCRIPT_USER: (title: string, summary: string) => `Create a scholarly 4-6 minute podcast script for: "${title}" - ${summary}
+If the discussion is thin or not worth reading, keep it to 2-4 minutes.
 
 MANDATORY: Use web search to thoroughly research this topic, including:
 1. CRITICAL: The original source content (search for the exact URL from metadata)
@@ -226,6 +228,8 @@ Rules:
 - Include diverse perspectives from the actual discussion
 - Ground observations in evidence from your research
 - Allow occasional light metaphors only when clarifying complex relationships
+- Avoid repeating the same observation or re-listing comment patterns
+- Use at most 2-3 direct quotes total
 - The JSON array must begin with the scholar's opening observation
 - Every element must be an object containing "persona" and "text"
 
@@ -254,6 +258,12 @@ RULES:
 - The article_triage verdict should honestly reflect whether the comments suggest the original content is worth reading—it's OK to say "comments don't add much reason to click through."
 - Narration_plan entries should describe the natural browsing flow the narrator will follow: orientation → activity read → comment scan → worth-it decision → wrap-up.
 - Keep tone terse and procedural. You are documenting observations for a colleague who will generate the casual narration later.
+- Keep output compact: at most 3 comment_buckets and 2 exceptional_segments.
+- Use at most 1 representative quote per comment bucket.
+- Total direct quotes across comment_buckets and exceptional_segments should be 2 or fewer.
+- If worth_scanning is false or comments are sparse, leave comment_buckets empty or include just 1 short bucket.
+- Make temperature_summary a single sentence.
+- narration_plan should be exactly 5 steps matching the browsing flow.
 
 OUTPUT FORMAT:
 Return a single JSON object with these fields (arrays may be empty but must exist):
@@ -340,6 +350,7 @@ Research this URL and its discussion. Gather the data the narrator needs to brow
 Populate the JSON schema. If the discussion is sparse or low-quality, note that explicitly—the narrator might just say "not much here" and keep it short. If the comments don't give a reason to read the content, that's a valid outcome.
 
 Mark uncertain or absent details as "unknown" and list them again inside required_evidence.
+Keep the outline compact. Focus on the 1-2 most salient discussion patterns and avoid duplicating buckets.
 
 Important: respond with the JSON object only.`,
 
@@ -348,6 +359,7 @@ Important: respond with the JSON object only.`,
 The tone is casual, unpolished, like someone muttering to themselves while scrolling. Low-energy but engaged when something catches your attention. You're not performing—you're just describing what you see and your immediate reactions.
 
 The source may be a Hacker News post, Reddit thread, blog, or other discussion format. Adapt naturally to whatever platform you find.
+Length targets: 4-6 minutes (roughly 600-900 words) when the content is worth reading; 2-4 minutes (roughly 300-600 words) when it is not. Do not pad. Merge steps when evidence is thin.
 
 BROWSING FLOW (this is how you actually read):
 
@@ -363,7 +375,8 @@ BROWSING FLOW (this is how you actually read):
    - "There are some heated takes like [quote or paraphrase]."
    - "The more level-headed responses are pointing out [observation]."
    - "I'm seeing a lot of [sentiment]—maybe [percentage] of the comments."
-   - Pull actual quotes: "One person says, '[exact quote]'—that's pretty representative."
+   - Pull actual quotes sparingly (at most 2 total): "One person says, '[exact quote]'—that's pretty representative."
+   - Pick only the 1-2 most evident patterns instead of covering every category.
 
 4. Worth-it decision — Based on the comments, do you care about the content?
    - If YES: "The comments are making me curious about the actual content. Let me look at it..."
@@ -380,6 +393,7 @@ VOICE NOTES:
 - Admit when something is boring, shallow, or not worth your time
 - Don't be afraid of short observations: "Not much here."
 - Quote real comments with attribution when possible
+- Use at most 2 direct quotes total
 
 SCENARIO HANDLING:
 - Low activity post: "Only [X] comments after [Y] hours. Pretty quiet. Let me see if there's anything worth noting... [scan briefly, note if anything stands out or just move on]"
@@ -392,6 +406,7 @@ FORMATTING:
 - Output a single JSON array where every element looks like { "persona": "SCHOLAR", "text": "..." }.
 - Keep vocabulary plain and conversational.
 - AVOID: "this is very Hacker News", "right at the intersection of X and Y", or similar meta-commentary about the platform vibe. Stick to the actual discussion.
+- Prefer 5-7 short entries. Combine steps if the content is thin.
 
 `,
 
@@ -419,7 +434,7 @@ BROWSING PROCESS:
      * "The longest threads are debating..."
      * "Some of the more extreme takes..."
      * "The level-headed responses..."
-   - Pull representative_quotes exactly, with attribution
+   - Use representative_quotes sparingly (at most 2 total) and exactly, with attribution
    - Use share_estimate values naturally ("maybe 40% of comments are...")
    - If outline.comment_temperature.worth_scanning is false, keep this brief
 
@@ -444,7 +459,12 @@ VOICE:
 - Casual, thinking-out-loud tone
 - Use filler words naturally: "okay", "let me see", "so"
 - React to what you find
-- No fixed length target—take as much space as the content justifies, but don't pad.
+- Use the length guidance below—take only as much space as the content justifies, but don't pad.
+LENGTH:
+- Use at most 2 direct quotes total
+- If outline.article_triage.worth_reading is false, keep it under about 350-450 words
+- If true, aim for about 550-850 words
+- Do not restate the title or summary more than once
 
 Respond with the JSON array only.`,
 
@@ -467,6 +487,9 @@ EDITING RULES:
 - AVOID: "this is very Hacker News", "right at the intersection of X and Y", or generic platform commentary.
 - Preserve JSON array shape with persona "SCHOLAR".
 - Tighten sentences but don't make them formal.
+- Remove repeated observations or re-listing of comment patterns.
+- Limit to at most 2 direct quotes total.
+- If worth_reading is false, aim for about 350-450 words; if true, about 550-850 words.
 
 Return only the refined JSON array.`,
 
@@ -484,10 +507,14 @@ Requirements:
 - Preserve casual filler ("okay", "so", "let me see") and natural reactions, but tighten where repetitive.
 - Strip any "podcast host" energy—no rhetorical questions to the listener, no hype, no flourish.
 - Check outline.article_triage.worth_reading:
-  - If TRUE: ensure key_claims, creator_intent, and exceptional_segments are covered with exact quotes and attribution.
+  - If TRUE: ensure key_claims and creator_intent are covered, and include exceptional_segments with exact quotes and attribution.
   - If FALSE: keep it concise, note what you're skipping, don't pad.
 - Reuse share_estimate values and excerpt/reason text exactly from the outline.
 - Close with a casual one-sentence takeaway that mirrors outline.takeaway.
+- Remove repeated observations or re-listing of comment patterns.
+- Use at most 2 direct quotes total.
+- If worth_reading is false, keep it under about 350-450 words; if true, aim for about 550-850 words.
+- If the outline provides more than two quote candidates, choose up to two and paraphrase the rest with attribution.
 
 The result should sound like someone mumbling through their feed, not performing for an audience.
 
