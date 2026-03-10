@@ -8,3 +8,5 @@ resources/
 .DS_Store
 
 dist/
+
+.secrets.env
