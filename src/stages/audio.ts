@@ -101,7 +101,7 @@ export async function runAudio(context: Context): Promise<void> {
       console.log(`[audio] Synthesizing chunk ${i + 1}/${chunks.length}: ${persona}, ${charCount} chars`);
 
       const response = await openai.audio.speech.create({
-        model: 'gpt-4o-mini-tts-2025-12-15',
+        model: 'gpt-4o-mini-tts',
         voice,
         input: chunkText,
         instructions: 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.'

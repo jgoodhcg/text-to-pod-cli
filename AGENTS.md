@@ -41,6 +41,11 @@ A Node.js + TypeScript CLI that turns source URLs into scholarly podcast episode
 - Ask before running commands outside the allowed verification list.
 - When instructing users to publish, default to `npm run dev -- --run-stage publish ...` to avoid stale `dist/` builds.
 
+## Model Updates
+- OpenAI models reference: https://developers.openai.com/api/docs/models/all
+- Current defaults: `gpt-5.4` (text), `gpt-4o-mini-tts` (audio)
+- When updating models, check the reference page and update `src/config.ts` and `src/stages/audio.ts`
+
 ## Key Files
 - `src/` — TypeScript source
 - `dist/` — compiled CLI output (generated)
