@@ -19,6 +19,21 @@ interface OutlineActivitySignals {
   comparison_to_typical: string;
 }
 
+interface ProjectPopularityContext {
+  cohort_basis: 'published' | 'completed';
+  cohort_size: number;
+  source_domain_episode_count: number;
+  source_type_episode_count: number;
+  current_comment_count?: number;
+  project_rank_by_comment_count?: number;
+  project_percentile_by_comment_count?: number;
+  project_median_comment_count?: number;
+  source_domain_median_comment_count?: number;
+  source_type_median_comment_count?: number;
+  relative_label: 'top-tier' | 'above-median' | 'mid-pack' | 'low-engagement' | 'unknown';
+  summary: string;
+}
+
 interface OutlineCommentTemperature {
   worth_scanning: boolean;
   dominant_sentiment: string;
@@ -67,6 +82,7 @@ interface OutlineExceptionalSegment {
 interface ScriptOutline {
   headline: OutlineHeadline;
   activity_signals: OutlineActivitySignals;
+  project_context?: ProjectPopularityContext;
   comment_temperature: OutlineCommentTemperature;
   comment_buckets: OutlineCommentBucket[];
   article_triage: OutlineArticleTriage;
@@ -82,6 +98,206 @@ interface DescriptionNotes {
   key_themes: string[];
   notable_insights: string[];
   listener_hook: string;
+}
+
+interface StoredOutlineRow {
+  episode_id: string;
+  script_outline_content?: string;
+  publish_status: string;
+  script_status: string;
+}
+
+function parseApproximateCount(value?: string): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.toLowerCase();
+  if (normalized.includes('unknown') || normalized.includes('n/a')) {
+    return null;
+  }
+
+  const matches = [...normalized.matchAll(/\d[\d,]*/g)];
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const numbers = matches
+    .map(match => Number(match[0].replace(/,/g, '')))
+    .filter(number => Number.isFinite(number));
+
+  if (numbers.length === 0) {
+    return null;
+  }
+
+  return Math.max(...numbers);
+}
+
+function median(values: number[]): number | undefined {
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  const sorted = [...values].sort((a, b) => a - b);
+  const midpoint = Math.floor(sorted.length / 2);
+
+  if (sorted.length % 2 === 1) {
+    return sorted[midpoint];
+  }
+
+  const lower = sorted[midpoint - 1]!;
+  const upper = sorted[midpoint]!;
+  return Math.round((lower + upper) / 2);
+}
+
+function formatCount(value?: number): string {
+  return typeof value === 'number' ? value.toLocaleString() : 'unknown';
+}
+
+function percentileFromRank(rank: number, total: number): number {
+  if (total <= 1) {
+    return 100;
+  }
+
+  const percentile = ((total - rank) / (total - 1)) * 100;
+  return Math.round(percentile);
+}
+
+function labelFromPercentile(percentile?: number): ProjectPopularityContext['relative_label'] {
+  if (typeof percentile !== 'number') {
+    return 'unknown';
+  }
+
+  if (percentile >= 85) {
+    return 'top-tier';
+  }
+
+  if (percentile >= 60) {
+    return 'above-median';
+  }
+
+  if (percentile >= 35) {
+    return 'mid-pack';
+  }
+
+  return 'low-engagement';
+}
+
+function buildProjectPopularityContext(
+  context: Context,
+  outline: ScriptOutline
+): ProjectPopularityContext {
+  const rowQuery = `
+    SELECT episode_id, script_outline_content, publish_status, script_status
+    FROM episodes
+    WHERE episode_id != ?
+      AND script_outline_content IS NOT NULL
+      AND (
+        publish_status = ?
+        OR script_status = ?
+      )
+  `;
+
+  const rows = context.db
+    .prepare(rowQuery)
+    .all(
+      context.episodeId,
+      CONFIG.STAGE_STATUS.COMPLETED,
+      CONFIG.STAGE_STATUS.COMPLETED
+    ) as StoredOutlineRow[];
+
+  const publishedRows = rows.filter(row => row.publish_status === CONFIG.STAGE_STATUS.COMPLETED);
+  const candidateRows = publishedRows.length > 0 ? publishedRows : rows;
+  const cohortBasis: ProjectPopularityContext['cohort_basis'] =
+    publishedRows.length > 0 ? 'published' : 'completed';
+
+  const parsedOutlines = candidateRows
+    .map(row => {
+      try {
+        return JSON.parse(row.script_outline_content || '{}') as Partial<ScriptOutline>;
+      } catch (error) {
+        console.warn('[script] Unable to parse stored outline for project context:', row.episode_id, error);
+        return null;
+      }
+    })
+    .filter((value): value is Partial<ScriptOutline> => value !== null);
+
+  const currentCommentCount = parseApproximateCount(outline.activity_signals.comment_count);
+  const currentSourceDomain = outline.headline.source_domain;
+  const currentSourceType = outline.headline.source_type;
+
+  const comparableEpisodes = parsedOutlines
+    .map(candidate => {
+      const commentCount = parseApproximateCount(candidate.activity_signals?.comment_count);
+      if (commentCount === null) {
+        return null;
+      }
+
+      return {
+        commentCount,
+        sourceDomain: candidate.headline?.source_domain || 'unknown',
+        sourceType: candidate.headline?.source_type || 'unknown'
+      };
+    })
+    .filter(
+      (
+        value
+      ): value is { commentCount: number; sourceDomain: string; sourceType: string } => value !== null
+    );
+
+  const allCounts = comparableEpisodes.map(episode => episode.commentCount);
+  const sameDomainCounts = comparableEpisodes
+    .filter(episode => episode.sourceDomain === currentSourceDomain)
+    .map(episode => episode.commentCount);
+  const sameTypeCounts = comparableEpisodes
+    .filter(episode => episode.sourceType === currentSourceType)
+    .map(episode => episode.commentCount);
+
+  if (currentCommentCount === null || allCounts.length === 0) {
+    return {
+      cohort_basis: cohortBasis,
+      cohort_size: allCounts.length,
+      source_domain_episode_count: sameDomainCounts.length,
+      source_type_episode_count: sameTypeCounts.length,
+      relative_label: 'unknown',
+      summary:
+        'Project-relative popularity is unavailable here because this episode or the prior archive lacks a usable comment-count baseline.'
+    };
+  }
+
+  const sortedCounts = [...allCounts].sort((a, b) => b - a);
+  const rank = sortedCounts.filter(count => count > currentCommentCount).length + 1;
+  const percentile = percentileFromRank(rank, sortedCounts.length);
+  const label = labelFromPercentile(percentile);
+  const projectMedian = median(allCounts);
+  const domainMedian = median(sameDomainCounts);
+  const typeMedian = median(sameTypeCounts);
+
+  const cohortLabel = cohortBasis === 'published' ? 'published episodes' : 'completed episodes';
+  const domainFragment =
+    sameDomainCounts.length > 0
+      ? ` Within ${currentSourceDomain}, the median is ${formatCount(domainMedian)} comments across ${sameDomainCounts.length} episodes.`
+      : '';
+
+  const summary =
+    `Compared with ${sortedCounts.length} prior ${cohortLabel} with usable comment counts, this ranks #${rank} by comment volume ` +
+    `(${percentile}th percentile) against a project median of ${formatCount(projectMedian)} comments.` +
+    domainFragment;
+
+  return {
+    cohort_basis: cohortBasis,
+    cohort_size: sortedCounts.length,
+    source_domain_episode_count: sameDomainCounts.length,
+    source_type_episode_count: sameTypeCounts.length,
+    current_comment_count: currentCommentCount,
+    project_rank_by_comment_count: rank,
+    project_percentile_by_comment_count: percentile,
+    relative_label: label,
+    summary,
+    ...(projectMedian !== undefined ? { project_median_comment_count: projectMedian } : {}),
+    ...(domainMedian !== undefined ? { source_domain_median_comment_count: domainMedian } : {}),
+    ...(typeMedian !== undefined ? { source_type_median_comment_count: typeMedian } : {})
+  };
 }
 
 async function callOpenAIWithWebSearch(
@@ -329,7 +545,10 @@ function validateScript(script: ScriptDialogue[]): void {
     'in this section',
     'moving on to',
     'let\'s consider',
-    'as we discussed'
+    'as we discussed',
+    'more like',
+    'click through',
+    'comments an hour'
   ];
 
   const foundRepetitions = repetitionIndicators.filter(indicator => 
@@ -402,6 +621,9 @@ export async function runScript(context: Context): Promise<void> {
     // Stage 1: Generate outline
     const { outline } = 
       await generateOutline(openai, title, summary, url, context.options.scriptOutlineModel);
+
+    outline.project_context = buildProjectPopularityContext(context, outline);
+    console.log('[script] Project context:', outline.project_context.summary);
 
     // Save outline to file
     if (context.paths.outlineFile) {

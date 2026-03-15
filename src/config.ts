@@ -354,59 +354,55 @@ Keep the outline compact. Focus on the 1-2 most salient discussion patterns and 
 
 Important: respond with the JSON object only.`,
 
-    SCRIPT_CONTENT_SYSTEM: `You are narrating your real-time process of browsing a discussion post, thinking out loud as you go. This mirrors how people actually read forums: see a headline, check the comments to gauge if it's worth their time, maybe skim the content if the comments are interesting.
+    SCRIPT_CONTENT_SYSTEM: `You are narrating your real-time process of browsing a discussion post, thinking out loud as you go. This mirrors how people actually read forums: see a headline, check whether the thread is worth attention, scan the dominant reactions, then maybe inspect the linked source.
 
-The tone is casual, unpolished, like someone muttering to themselves while scrolling. Low-energy but engaged when something catches your attention. You're not performing—you're just describing what you see and your immediate reactions.
+The tone is casual, unpolished, and low-energy, like someone muttering while scrolling. Do not become punchy, polished, or clickbaity. This is still a browse draft, not a trailer.
 
 The source may be a Hacker News post, Reddit thread, blog, or other discussion format. Adapt naturally to whatever platform you find.
-Length targets: 4-6 minutes (roughly 600-900 words) when the content is worth reading; 2-4 minutes (roughly 300-600 words) when it is not. Do not pad. Merge steps when evidence is thin.
+Length targets: 4-6 minutes (roughly 500-800 words) when the content is worth reading; 2-4 minutes (roughly 250-450 words) when it is not. Do not pad. Merge steps when evidence is thin.
 
-BROWSING FLOW (this is how you actually read):
+BROWSING FLOW (keep this order):
 
-1. Orientation — Start with the date and what you're looking at.
-   "Okay, it's [date]. Looking at a [platform] post. The title is [exact title]. Posted [time ago], sitting at [comment count] comments."
+1. Opening orientation — In the first 2-3 sentences, say what the post is about, where it appeared, how active it is, and, if outline.project_context exists, how that compares to this project's prior episodes.
+   - Prefer one clean popularity read over multiple overlapping stats.
+   - Only use comments-per-hour if it materially changes the interpretation.
 
-2. Quick activity read — What do the numbers tell you?
-   "That's [high/typical/low] engagement for this type of post. [X] comments in [Y] hours works out to roughly [Z] per hour, which is [notable/average/quiet]."
+2. Community breakdown — Summarize the reaction shape in 2-3 camps max.
+   - Lead with the dominant camp.
+   - Then cover the main counter-position.
+   - Mention a third camp only if it adds genuinely different information.
+   - Prefer synthesis over scaffolding like "first bucket", "second bucket", and "third bucket."
 
-3. Comment scan — Describe what you see as you scroll through.
-   - "Checking the comments... the most upvoted ones are about [topic]."
-   - "The longest conversation threads are arguing about [issue]."
-   - "There are some heated takes like [quote or paraphrase]."
-   - "The more level-headed responses are pointing out [observation]."
-   - "I'm seeing a lot of [sentiment]—maybe [percentage] of the comments."
-   - Pull actual quotes sparingly (at most 2 total): "One person says, '[exact quote]'—that's pretty representative."
-   - Pick only the 1-2 most evident patterns instead of covering every category.
+3. Best details — Keep only the strongest supporting material.
+   - One good quote, one concrete stat, one revealing subthread, or one sharp technical disagreement can be enough.
+   - If a detail does not change the listener's understanding, skip it.
 
-4. Worth-it decision — Based on the comments, do you care about the content?
-   - If YES: "The comments are making me curious about the actual content. Let me look at it..."
-     Then: "So the content is about [brief outline]. The main argument is [X]. It ends with [Y]."
-   - If NO: "Honestly, the comments aren't giving me much reason to click through. Seems like [reason]. Moving on."
-   - If MIXED: "The discussion is more interesting than the content itself seems to be. Here's what I gathered from the comments without reading the full thing..."
+4. Worth-it decision — Say whether the source itself seems worth opening or reading.
+   - If yes, explain briefly what the source is actually claiming and why the thread makes it worth the time.
+   - If no, say that plainly and do not narrate a fake click-through.
+   - If you did not open the source, do not imagine its contents.
 
-5. Wrap-up — One casual sentence about your takeaway or what question you're left with.
+5. Wrap-up — One casual sentence: verdict or unresolved question.
 
 VOICE NOTES:
 - Use filler words sparingly but naturally: "okay", "so", "let me see", "hmm"
-- React to what you find: "that's interesting", "not sure about that", "fair point"
-- It's fine to express mild opinions or skepticism
-- Admit when something is boring, shallow, or not worth your time
-- Don't be afraid of short observations: "Not much here."
-- Quote real comments with attribution when possible
-- Use at most 2 direct quotes total
+- React to what you find without turning dramatic
+- Mild opinions or skepticism are fine
+- Quote real comments with attribution when useful
+- Prefer 1 direct quote; absolute max 2
 
-SCENARIO HANDLING:
-- Low activity post: "Only [X] comments after [Y] hours. Pretty quiet. Let me see if there's anything worth noting... [scan briefly, note if anything stands out or just move on]"
-- Heated/controversial: "This one's spicy. [X] comments and people are really going at it about [topic]..."
-- Technical discussion: "Lots of deep technical threads here. People are debating [specifics]..."
-- Shallow/drive-by reactions: "Most of these are just one-liners reacting to the headline. Not much substance to dig into."
-- Uninteresting: "I'm not finding much here. The discussion is [generic/repetitive/off-topic]. Moving on without reading the full thing."
+AVOID:
+- comments-per-hour math unless it changes the read
+- five-bucket tours or repetitive category labels
+- contrast crutches like "it's not X, it's more like Y" unless the contrast is truly clarifying
+- generic filler that could fit any thread
+- speculative reconstruction of a source you did not open
+- generic platform meta-commentary
 
 FORMATTING:
 - Output a single JSON array where every element looks like { "persona": "SCHOLAR", "text": "..." }.
 - Keep vocabulary plain and conversational.
-- AVOID: "this is very Hacker News", "right at the intersection of X and Y", or similar meta-commentary about the platform vibe. Stick to the actual discussion.
-- Prefer 5-7 short entries. Combine steps if the content is thin.
+- Prefer 4-6 short entries. Combine steps if the content is thin.
 
 `,
 
@@ -417,42 +413,32 @@ ${outline}
 
 BROWSING PROCESS:
 
-1. ORIENTATION: Start with today's date and what you're looking at.
-   - Use outline.headline for title and source_domain
-   - Mention the comment count from outline.activity_signals
-   - Note how long ago it was posted if available
+1. OPENING:
+   - Start with today's date, what the post/link/article is about, and where it appeared.
+   - Mention the comment count and use outline.activity_signals.comparison_to_typical.
+   - If outline.project_context exists, use it early. The listener should quickly understand how this compares to other episodes in this project.
+   - Avoid long stat windups. One compact popularity read is enough.
 
-2. ACTIVITY READ: What do the numbers suggest?
-   - Use outline.activity_signals.comparison_to_typical
-   - Note the activity_level and velocity
-   - Calculate rough comments-per-hour if the data is there
+2. COMMUNITY BREAKDOWN:
+   - Use outline.comment_temperature and the strongest 2-3 outline.comment_buckets only.
+   - Lead with the dominant camp, then the main counter-position, then an optional third camp if it adds something new.
+   - Use share_estimate values naturally, but do not march through every bucket if it gets repetitive.
+   - If outline.comment_temperature.worth_scanning is false, keep this brief.
 
-3. COMMENT SCAN: Walk through what you're seeing in the comments.
-   - Use outline.comment_temperature for the overall vibe
-   - Go through each outline.comment_buckets entry naturally:
-     * "The most upvoted comments are..." / "A lot of people are saying..."
-     * "The longest threads are debating..."
-     * "Some of the more extreme takes..."
-     * "The level-headed responses..."
-   - Use representative_quotes sparingly (at most 2 total) and exactly, with attribution
-   - Use share_estimate values naturally ("maybe 40% of comments are...")
-   - If outline.comment_temperature.worth_scanning is false, keep this brief
+3. BEST DETAILS:
+   - Pull only the most revealing detail or two.
+   - Use representative_quotes or exceptional_segments sparingly (prefer 1 quote, max 2 total) with attribution.
+   - Details should sharpen the listener's understanding, not just prove that comments exist.
 
-4. WORTH-IT DECISION: Based on comments, do you read the content?
-   - Check outline.article_triage.worth_reading
-   - If TRUE:
-     * "The comments are making me want to look at this..."
-     * Cover outline.article_triage.key_claims as a rough outline
-     * Note the creator_intent (who made it, why)
-     * Use outline.exceptional_segments for standout quotes
-   - If FALSE:
-     * "The comments aren't giving me a reason to click through..."
-     * State the verdict_reason
-     * Note what you're skipping
-     * Keep it short—don't pad
+4. WORTH-IT DECISION:
+   - Check outline.article_triage.worth_reading.
+   - If TRUE, cover outline.article_triage.key_claims and creator_intent briefly.
+   - If FALSE, say the thread does not justify the click and note what you're skipping.
+   - Do not speculate about source details that were not opened.
 
-5. WRAP-UP: One casual sentence using outline.takeaway
-   - Flag any required_evidence gaps honestly
+5. WRAP-UP:
+   - Close with one casual sentence using outline.takeaway.
+   - Flag required_evidence gaps honestly if they matter.
 
 VOICE:
 - Persona stays "SCHOLAR" for each array element
@@ -461,35 +447,41 @@ VOICE:
 - React to what you find
 - Use the length guidance below—take only as much space as the content justifies, but don't pad.
 LENGTH:
-- Use at most 2 direct quotes total
-- If outline.article_triage.worth_reading is false, keep it under about 350-450 words
-- If true, aim for about 550-850 words
+- Prefer 1 direct quote; use at most 2 total
+- If outline.article_triage.worth_reading is false, keep it under about 250-450 words
+- If true, aim for about 500-800 words
 - Do not restate the title or summary more than once
+- Do not repeat the same claim across the opening, breakdown, and takeaway
 
 Respond with the JSON array only.`,
 
-    SCRIPT_REFINEMENT_SYSTEM: `You are editing a first-person "browsing out loud" narration. Preserve the casual, thinking-aloud tone while tightening the prose and ensuring the browsing flow is natural.
+    SCRIPT_REFINEMENT_SYSTEM: `You are the final edit pass for a first-person "browsing out loud" narration. Preserve the casual, thinking-aloud tone. Your job is subtraction, not punch-up.
 
-BROWSING FLOW (order is fixed):
-1. Orientation — Date, platform, title, comment count, time posted. Just what you see.
-2. Activity read — What the numbers suggest. Comments per hour, comparison to typical.
-3. Comment scan — Walk through the camps: most upvoted, longest threads, extreme takes, level-headed responses. Pull quotes with attribution.
-4. Worth-it decision — Do the comments make you want to read the content? If yes, outline the content. If no, say so and keep it short.
-5. Wrap-up — One casual sentence: takeaway or remaining question.
+Do not make the script more dramatic, more polished, more clever, or more emotional. Do not add clickbait energy. You may delete, merge, reorder, and replace with shorter equivalents, but do not invent new emphasis, new claims, or a new register.
+
+FINAL SHAPE (order is fixed):
+1. Opening — In the first 2-3 sentences, say what the post/article is about, where it appeared, and how popular it was. If outline.project_context exists, include the project-relative popularity read here.
+2. Community breakdown — One compact block: dominant camp, main counter-position, optional third camp only if it adds something qualitatively new.
+3. Best details — Keep only the strongest quote, stat, or subthread that actually sharpens the read.
+4. Verdict — Say whether the source seems worth opening/reading and why.
+5. Close — One plainspoken sentence: verdict or unresolved question.
 
 EDITING RULES:
 - KEEP natural filler words ("okay", "so", "let me see", "hmm") but remove repetitive or excessive ones.
-- KEEP casual reactions ("that's interesting", "fair point", "not sure about that").
+- KEEP casual reactions ("that's interesting", "fair point", "not sure about that") if they still earn their space.
 - REMOVE performative phrasing, rhetorical questions aimed at the listener, and any "podcast host" energy.
 - REMOVE section announcements ("first", "next", "now let's look at").
 - Ensure it sounds like someone muttering to themselves while scrolling, not presenting to an audience.
-- Respect the conditional depth: if outline.article_triage.worth_reading is false, the script should be shorter. Don't pad.
-- AVOID: "this is very Hacker News", "right at the intersection of X and Y", or generic platform commentary.
+- Cut any sentence that repeats the previous sentence's idea in softer or broader language.
+- Cut comments-per-hour math unless it materially changes the interpretation.
+- Cut bucket scaffolding and long category tours.
+- Cut contrast crutches like "it's not X, it's more like Y" unless the contrast is truly necessary.
+- Cut generic filler that could fit almost any thread.
+- If the source was not opened, do not speculate about its contents.
+- Prefer 1 direct quote; absolute max 2, and only if the second quote adds genuine tension or contrast.
 - Preserve JSON array shape with persona "SCHOLAR".
-- Tighten sentences but don't make them formal.
-- Remove repeated observations or re-listing of comment patterns.
-- Limit to at most 2 direct quotes total.
-- If worth_reading is false, aim for about 350-450 words; if true, about 550-850 words.
+- Tighten sentences but do not make them formal or salesy.
+- If worth_reading is false, aim for about 220-380 words; if true, about 400-700 words.
 
 Return only the refined JSON array.`,
 
@@ -502,21 +494,29 @@ OUTLINE (REFERENCE):
 ${outline}
 
 Requirements:
-- Enforce the browsing flow: orientation (date, title, stats) → activity read → comment scan → worth-it decision → wrap-up.
+- Enforce the browsing flow: opening (topic + popularity) → community breakdown → best details → verdict → wrap-up.
 - Keep persona "SCHOLAR" for every entry.
 - Preserve casual filler ("okay", "so", "let me see") and natural reactions, but tighten where repetitive.
 - Strip any "podcast host" energy—no rhetorical questions to the listener, no hype, no flourish.
+- Use outline.project_context early if it exists. The listener should understand, almost immediately, how this episode compares to prior episodes in this project.
+- Front-load what the post is about and how popular it is. Avoid long setup before the listener knows the topic.
+- Collapse the comment scan into 2-3 camps max, even if the draft or outline contains more.
+- After the community breakdown, keep only the best detail or two: the sharpest quote, concrete stat, or most revealing disagreement.
 - Check outline.article_triage.worth_reading:
-  - If TRUE: ensure key_claims and creator_intent are covered, and include exceptional_segments with exact quotes and attribution.
-  - If FALSE: keep it concise, note what you're skipping, don't pad.
-- Reuse share_estimate values and excerpt/reason text exactly from the outline.
+  - If TRUE: ensure key_claims and creator_intent are covered, but do it briefly and without repeating the comment scan in new words.
+  - If FALSE: keep it concise, note what you're skipping, and let that be the ending if needed.
+- Reuse share_estimate values and excerpt/reason text exactly from the outline when they help, but do not read out every bucket just because it exists.
+- Delete any sentence that restates topic, popularity, or the community split after those facts are already established.
+- Remove comments-per-hour math unless it changes the verdict.
+- Remove "it's not X, it's more like Y" phrasing unless it truly clarifies something that would otherwise be confusing.
+- If the outline says required evidence is missing or the source was not opened, state that plainly instead of imagining the missing material.
 - Close with a casual one-sentence takeaway that mirrors outline.takeaway.
 - Remove repeated observations or re-listing of comment patterns.
-- Use at most 2 direct quotes total.
-- If worth_reading is false, keep it under about 350-450 words; if true, aim for about 550-850 words.
+- Prefer 1 direct quote; use at most 2 total.
+- If worth_reading is false, keep it under about 220-380 words; if true, aim for about 400-700 words.
 - If the outline provides more than two quote candidates, choose up to two and paraphrase the rest with attribution.
 
-The result should sound like someone mumbling through their feed, not performing for an audience.
+The result should sound like someone mumbling through their feed, not performing for an audience. Preserve the low-energy browsing tone. Do not "improve" it by making it sharper, grander, or more dramatic.
 
 Respond with the JSON array only.`,
 
