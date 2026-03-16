@@ -10,3 +10,4 @@ resources/
 dist/
 
 .secrets.env
+.agent-profile.md

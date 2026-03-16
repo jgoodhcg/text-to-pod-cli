@@ -1,9 +1,43 @@
 # AGENTS
 
-Follows AGENT_BLUEPRINT.md
+Follows `AGENT_BLUEPRINT.md` (version: `2026-03-14.1`)
 
 ## Project Overview
-A Node.js + TypeScript CLI that turns source URLs into scholarly podcast episodes using a multi-stage script pipeline, SQLite storage, and optional audio/publish tooling.
+
+A Node.js + TypeScript CLI that turns source URLs into scholarly podcast episodes using a staged pipeline: metadata extraction, script outline/content/refinement, audio synthesis, merge, and optional publish. Runtime state lives in SQLite and episode artifacts live under `resources/episodes/`.
+
+## Stack
+
+- Node.js 20.x
+- TypeScript with `tsx` for local execution and `tsc` for builds
+- SQLite via `better-sqlite3`
+- OpenAI Responses + speech APIs for metadata, script generation, and audio
+
+## Environment
+
+- Version manager: `nvm`-compatible via `.nvmrc`
+- Version file: `.nvmrc`
+- Lockfile: `package-lock.json`
+- Setup: `npm ci`
+
+## Commit Trailer Template
+
+Store a template, not concrete runtime values.
+
+```text
+Co-authored-by: [AI_PRODUCT_NAME] <[AI_PRODUCT_EMAIL]>
+AI-Provider: [AI_PROVIDER]
+AI-Product: [AI_PRODUCT_LINE]
+AI-Model: [AI_MODEL]
+```
+
+Template rules:
+- `AI_PRODUCT_LINE` must be one of: `codex|claude|gemini|opencode`.
+- Determine `AI_PRODUCT_LINE` from the active runtime/tooling context at commit time.
+- Determine `AI_PROVIDER` and `AI_MODEL` from runtime metadata at commit time.
+- Resolve `AI_PRODUCT_NAME` and `AI_PRODUCT_EMAIL` from the model name using `AGENT_BLUEPRINT.md` section `[BP-WF-COMMIT]`.
+- Fill this template at commit time; never persist filled runtime values in `AGENTS.md`.
+- For multi-model attribution, follow `AGENT_BLUEPRINT.md` section `[BP-WF-COMMIT-MULTI]`.
 
 ## Validation Commands
 
@@ -14,42 +48,68 @@ A Node.js + TypeScript CLI that turns source URLs into scholarly podcast episode
 | 3 | (none configured) | No unit tests set up |
 | 4 | (none configured) | No E2E tests set up |
 
-## Allowed Commands
-- `npm run build` — Type-check and emit `dist/`
-- `node dist/cli.js --help` — Verify CLI wiring after build
-- `npm run dev -- --help` — Verify CLI wiring without build
+## Execution Modes
 
-## Require Confirmation
-- Any command outside the allowed list
-- Dependency installs or upgrades
-- Network calls or anything that spends money
-- Database writes, migrations, or data changes
-- Publishing, deployment, or uploads
-- Background processes or watchers
-- Writing outside the repo boundary
+Use one policy file for both paired local work and any future autonomous workflow runs. Shared repo rules always apply.
+
+### Shared Rules
+
+- `roadmap/` is the canonical planning surface.
+- This repo currently uses named roadmap work units without numeric ID prefixes.
+- Validation commands are defined above and applied when relevant.
+- Keep changes minimal and scoped to the requested task or work unit.
+
+### Runtime: Interactive Local
+
+- Require user confirmation before `git commit`.
+- Require user confirmation before installs, upgrades, network calls with external side effects, database writes, publishing, or actions outside the repo.
+- It is acceptable to stop for clarification when scope is ambiguous.
+- Allowed verification commands without extra confirmation:
+  - `npm run build`
+  - `node dist/cli.js --help`
+  - `npm run dev -- --help`
+
+### Runtime: Autonomous Workflow
+
+- No autonomous workflow is configured in this repo yet.
+- If added later, the referenced `roadmap/` file must be the canonical brief and the workflow must follow `AGENT_BLUEPRINT.md` section `[BP-WF-AUTO]`.
 
 ## Never Run
+
 - `npm start` or `npm run dev` with real URLs, live API calls, or `--run-stage publish`
 - `s3cmd *` — uploads to Spaces
 - `ffmpeg *` — mutates audio assets
 - Destructive commands like `rm -rf` or deleting `data/episodes.db` or `resources/episodes/`
 
 ## Project-Specific Rules
-- Work one step at a time: confirm understanding, make a focused change, then report results.
+
 - Keep diffs minimal; avoid opportunistic refactors or formatting churn.
-- Prefer `rg` for search and `apply_patch` for single-file edits.
+- Prefer `rg` for search and `apply_patch` for focused file edits.
 - Ask before running commands outside the allowed verification list.
 - When instructing users to publish, default to `npm run dev -- --run-stage publish ...` to avoid stale `dist/` builds.
+- For script-quality work, preserve the low-energy browsing voice and avoid introducing punchy or clickbaity tone.
 
-## Model Updates
-- OpenAI models reference: https://developers.openai.com/api/docs/models/all
-- Current defaults: `gpt-5.4` (text), `gpt-4o-mini-tts` (audio)
-- When updating models, check the reference page and update `src/config.ts` and `src/stages/audio.ts`
+## Decision Artifacts
+
+- For high-impact or irreversible decisions, record structured comparisons in `.decisions/`.
+- Treat any decision JSON in `.decisions/` as the authoritative record when present.
+
+## References
+
+- For shared policy and commit attribution rules, see `AGENT_BLUEPRINT.md`.
+- For roadmap conventions, see `roadmap/README.md`.
+- For OpenAI model updates, see https://developers.openai.com/api/docs/models/all
 
 ## Key Files
+
 - `src/` — TypeScript source
-- `dist/` — compiled CLI output (generated)
-- `data/` — SQLite database (runtime)
-- `resources/` — audio/RSS assets (runtime)
-- `roadmap/` — project planning system
+- `src/config.ts` — models, prompt templates, and pipeline defaults
+- `src/stages/` — stage implementations for metadata, script, audio, merge, and publish
+- `data/` — SQLite database and runtime state
+- `resources/` — generated episode assets and feed artifacts
+- `roadmap/` — planning surface and work units
 - `AGENT_BLUEPRINT.md` — shared agent policy
+
+## User Profile
+
+See `.agent-profile.md` (git-ignored) for interaction preferences. Create or update it during project init or alignment work.
