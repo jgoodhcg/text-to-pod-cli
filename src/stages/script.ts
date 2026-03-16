@@ -107,9 +107,13 @@ interface StoredOutlineRow {
   script_status: string;
 }
 
-function parseApproximateCount(value?: string): number | null {
-  if (!value) {
+function parseApproximateCount(value?: string | number | null): number | null {
+  if (value === undefined || value === null) {
     return null;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
   }
 
   const normalized = value.toLowerCase();
