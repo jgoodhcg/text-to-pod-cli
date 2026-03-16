@@ -62,6 +62,7 @@ npm run dev -- --episode-dir <id> --run-stage publish \
 ### Setup Notes
 
 - Requires Node.js 20+ and an `OPENAI_API_KEY` environment variable.
+- Load environment variables before running: `source .secrets.env`
 - `s3cmd` must be configured (default config: `~/do-tor1.s3cfg`). Override with `--s3cfg <path>`.
 - `ffmpeg` is used during the merge stage; ensure it’s on your `PATH`.
 
