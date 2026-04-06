@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { buildContext } from './context.js';
+import { runHnFavoritesBatch } from './hn-favorites.js';
 import { runPipeline } from './runner.js';
 
 const program = new Command();
@@ -13,6 +14,8 @@ program
 
 program
   .option('--url <string>', 'URL to transform into podcast episode')
+  .option('--hn-favorites <string>', 'Hacker News username or favorites URL to batch-import')
+  .option('--hn-favorites-limit <number>', 'Maximum number of favorite thread URLs to process')
   .option('--episode-dir <path>', 'Episode directory path (for resuming)')
   .option('--output-root <path>', 'Output root directory', 'resources/episodes')
   .option('--start-stage <stage>', 'Start from specified stage (metadata, script, audio, merge, publish)')
@@ -48,8 +51,17 @@ program
   .option('--publish', 'Enable final upload to DigitalOcean Spaces (default)')
   .action(async (options) => {
     try {
+      if (options.hnFavorites) {
+        await runHnFavoritesBatch(options);
+        return;
+      }
+
       const context = buildContext(options);
-      await runPipeline(context);
+      try {
+        await runPipeline(context);
+      } finally {
+        context.db.close();
+      }
     } catch (error) {
       console.error('Error:', error instanceof Error ? error.message : String(error));
       process.exit(1);

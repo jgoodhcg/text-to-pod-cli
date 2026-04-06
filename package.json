@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/cli.js",
   "scripts": {
-    "dev": "tsx src/cli.ts",
+    "dev": "node --env-file-if-exists=.secrets.env --import tsx src/cli.ts",
     "start": "node dist/cli.js",
     "build": "tsc",
     "clean": "rm -rf dist",
