@@ -11,6 +11,7 @@ Pipeline resilience and content quality improvements for the five-stage script f
 ## Work Units
 - `pipeline-resilience-and-quality.md`
 - `arbitrary-text-input.md`
+- `hn-queue-import.md`
 - `openrouter-integration.md`
 - `codebase-cleanup.md`
 - `convert-to-bun.md`
