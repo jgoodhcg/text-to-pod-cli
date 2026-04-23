@@ -1,11 +1,11 @@
 ---
 title: "HN Queue File Import"
-status: idea
+status: done
 description: "Allow batch episode generation from a local hn-queue.txt file containing Hacker News thread URLs or item IDs."
 tags: [area/input, type/feature, tech/cli]
 priority: medium
 created: 2026-04-06
-updated: 2026-04-06
+updated: 2026-04-23
 effort: S
 depends-on: []
 ---

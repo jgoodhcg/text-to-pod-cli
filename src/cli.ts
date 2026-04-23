@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { buildContext } from './context.js';
 import { runHnFavoritesBatch } from './hn-favorites.js';
+import { runUrlFileBatch } from './url-file.js';
 import { runPipeline } from './runner.js';
 
 const program = new Command();
@@ -14,6 +15,7 @@ program
 
 program
   .option('--url <string>', 'URL to transform into podcast episode')
+  .option('--url-file <path>', 'Read newline-delimited URLs from a file and batch-process')
   .option('--hn-favorites <string>', 'Hacker News username or favorites URL to batch-import')
   .option('--hn-favorites-limit <number>', 'Maximum number of favorite thread URLs to process')
   .option('--episode-dir <path>', 'Episode directory path (for resuming)')
@@ -51,6 +53,11 @@ program
   .option('--publish', 'Enable final upload to DigitalOcean Spaces (default)')
   .action(async (options) => {
     try {
+      if (options.urlFile) {
+        await runUrlFileBatch(options);
+        return;
+      }
+
       if (options.hnFavorites) {
         await runHnFavoritesBatch(options);
         return;
