@@ -68,31 +68,26 @@ const MODEL_POOLS = {
   METADATA: [
     "z-ai/glm-5.1",
     "google/gemini-3.5-flash",
-    "qwen/qwen3.6-flash",
     "google/gemma-4-31b-it"
   ],
   SCRIPT_OUTLINE: [
     "anthropic/claude-sonnet-4.6",
     "google/gemini-3.1-pro-preview",
-    "z-ai/glm-5.1",
-    "qwen/qwen3.6-plus"
+    "z-ai/glm-5.1"
   ],
   SCRIPT_CONTENT: [
     "anthropic/claude-sonnet-4.6",
-    "anthropic/claude-opus-4.8-fast",
-    "google/gemini-3.1-pro-preview",
-    "qwen/qwen3.6-max-preview"
+    "anthropic/claude-opus-4.8",
+    "google/gemini-3.1-pro-preview"
   ],
   SCRIPT_REFINEMENT: [
     "anthropic/claude-sonnet-4.6",
     "google/gemini-3.1-pro-preview",
-    "z-ai/glm-5.1",
-    "qwen/qwen3.6-plus"
+    "z-ai/glm-5.1"
   ],
   SCRIPT_DESCRIPTION: [
     "z-ai/glm-5.1",
     "google/gemini-3.5-flash",
-    "qwen/qwen3.6-flash",
     "google/gemma-4-31b-it"
   ]
 } as const;
@@ -150,7 +145,7 @@ export const CONFIG = {
   // Default settings
   DEFAULT_MAX_SCRIPT_CHARS: 900,
   DEFAULT_MAX_AUDIO_CHARS: 600,
-  DEFAULT_GENERATION_RETRIES: 1,
+  DEFAULT_GENERATION_RETRIES: 2,
   DEFAULT_OUTPUT_ROOT: "resources/episodes",
   DEFAULT_INTRO_BUMPER: "resources/intro.mp3",
   DEFAULT_OUTRO_BUMPER: "resources/outro.mp3",

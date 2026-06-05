@@ -114,7 +114,10 @@ async function generateOpenRouterTextWithWebSearch(
             max_content_tokens: 50000
           }
         }
-      ]
+      ],
+      provider: {
+        ignore: ['alibaba', 'anthropic', 'google-ai-studio']
+      }
     })
   });
 
