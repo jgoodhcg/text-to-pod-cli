@@ -11,3 +11,7 @@ dist/
 
 .secrets.env
 .agent-profile.md
+
+hn-upvoted-*.txt
+hn-upvoted-*-progress.md
+tmp-upvoted-urls*.txt
