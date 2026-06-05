@@ -1,12 +1,13 @@
 import type { Context } from '../types.js';
-import OpenAI from 'openai';
 import { existsSync, mkdirSync } from 'fs';
 import { CONFIG } from '../config.js';
 import { extractJsonObject, sanitizeJsonText } from '../utils.js';
 import { normalizeUrl } from '../utils.js';
+import { formatProviderModel, generateTextWithWebSearch } from '../generation.js';
 
 export async function runMetadata(context: Context): Promise<void> {
   console.log('[metadata] Running metadata stage');
+  console.log('[metadata] Provider:', context.options.textProvider);
   console.log('[metadata] Model:', context.options.metadataModel);
   console.log('[metadata] URL:', context.options.url);
   console.log('[metadata] Dry run:', context.options.dryRun);
@@ -48,40 +49,29 @@ export async function runMetadata(context: Context): Promise<void> {
   }
 
   if (context.options.dryRun) {
-    console.log('[metadata] Dry run: would call OpenAI API to extract metadata');
+    console.log(`[metadata] Dry run: would call ${context.options.textProvider} API to extract metadata`);
     console.log('[metadata] Dry run: would update database with results');
     return;
   }
 
-  // Call OpenAI API
-  const openai = new OpenAI();
-  
   const systemPrompt = context.options.metadataSystemPrompt || CONFIG.PROMPTS.METADATA_SYSTEM;
   const userPrompt = context.options.metadataPromptTemplate 
     ? context.options.metadataPromptTemplate.replace('{url}', context.options.url)
     : CONFIG.PROMPTS.METADATA_USER(context.options.url);
 
   try {
-    // Use Responses API for web search
-    const response = await (openai as any).responses.create({
+    const response = await generateTextWithWebSearch({
+      provider: context.options.textProvider,
       model: context.options.metadataModel,
-      input: [
-        { role: 'system', content: systemPrompt + "\n\nIMPORTANT: You must respond with a valid JSON object containing the metadata fields. Do not include any explanations or text outside the JSON." },
-        { role: 'user', content: userPrompt }
-      ],
-      tools: [
-        {
-          type: "web_search"
-        }
-      ],
-      tool_choice: "auto"
+      systemPrompt: systemPrompt + "\n\nIMPORTANT: You must respond with a valid JSON object containing the metadata fields. Do not include any explanations or text outside the JSON.",
+      userPrompt
     });
 
-    console.log('[metadata] Web search performed by model');
+    console.log(`[metadata] Web search requested via ${context.options.textProvider}`);
 
-    const finalContent = response.output_text;
+    const finalContent = response.content;
     if (!finalContent) {
-      throw new Error('No response from OpenAI');
+      throw new Error(`No response from ${context.options.textProvider}`);
     }
 
     console.log('[metadata] Raw response length:', finalContent.length);
@@ -90,7 +80,7 @@ export async function runMetadata(context: Context): Promise<void> {
     // Extract JSON from response - more robust approach
     const jsonContentRaw = extractJsonObject(finalContent);
     if (!jsonContentRaw) {
-      throw new Error('Failed to locate JSON object in OpenAI response');
+      throw new Error(`Failed to locate JSON object in ${context.options.textProvider} response`);
     }
 
     const jsonContent = sanitizeJsonText(jsonContentRaw);
@@ -105,7 +95,7 @@ export async function runMetadata(context: Context): Promise<void> {
       console.error('[metadata] JSON parse error:', parseError);
       console.error('[metadata] Problematic JSON:', jsonContent);
       const message = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse JSON from OpenAI response: ${message}`);
+      throw new Error(`Failed to parse JSON from ${context.options.textProvider} response: ${message}`);
     }
     
     // Validate required fields
@@ -115,7 +105,7 @@ export async function runMetadata(context: Context): Promise<void> {
 
     // Update database with results
     const updates: any = {
-      metadata_model: context.options.metadataModel,
+      metadata_model: formatProviderModel(context.options.textProvider, context.options.metadataModel),
       metadata_title: metadata.title,
       metadata_summary: metadata.summary,
       metadata_published_at: metadata.published_at || new Date().toISOString()

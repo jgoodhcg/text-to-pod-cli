@@ -64,17 +64,84 @@ const SCRIPT_OBJECTIVE_QUESTIONS = [
   }
 ] as const;
 
+const MODEL_POOLS = {
+  METADATA: [
+    "z-ai/glm-5.1",
+    "google/gemini-3.5-flash",
+    "qwen/qwen3.6-flash",
+    "google/gemma-4-31b-it"
+  ],
+  SCRIPT_OUTLINE: [
+    "anthropic/claude-sonnet-4.6",
+    "google/gemini-3.1-pro-preview",
+    "z-ai/glm-5.1",
+    "qwen/qwen3.6-plus"
+  ],
+  SCRIPT_CONTENT: [
+    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-opus-4.8-fast",
+    "google/gemini-3.1-pro-preview",
+    "qwen/qwen3.6-max-preview"
+  ],
+  SCRIPT_REFINEMENT: [
+    "anthropic/claude-sonnet-4.6",
+    "google/gemini-3.1-pro-preview",
+    "z-ai/glm-5.1",
+    "qwen/qwen3.6-plus"
+  ],
+  SCRIPT_DESCRIPTION: [
+    "z-ai/glm-5.1",
+    "google/gemini-3.5-flash",
+    "qwen/qwen3.6-flash",
+    "google/gemma-4-31b-it"
+  ]
+} as const;
+
+const AUDIO_PRESET_POOLS = {
+  OPENROUTER: [
+    { model: "microsoft/mai-voice-2", voice: "en-US-Harper:MAI-Voice-2" },
+    { model: "hexgrad/kokoro-82m", voice: "af_heart" },
+    { model: "hexgrad/kokoro-82m", voice: "af_bella" },
+    { model: "hexgrad/kokoro-82m", voice: "am_adam" },
+    { model: "canopylabs/orpheus-3b-0.1-ft", voice: "tara" },
+    { model: "canopylabs/orpheus-3b-0.1-ft", voice: "leo" },
+    { model: "zyphra/zonos-v0.1-transformer", voice: "american_female" },
+    { model: "zyphra/zonos-v0.1-hybrid", voice: "american_male" },
+    { model: "sesame/csm-1b", voice: "default" }
+  ],
+  OPENAI: [
+    { model: "gpt-4o-mini-tts", voice: "alloy" },
+    { model: "gpt-4o-mini-tts", voice: "echo" },
+    { model: "gpt-4o-mini-tts", voice: "fable" },
+    { model: "gpt-4o-mini-tts", voice: "onyx" },
+    { model: "gpt-4o-mini-tts", voice: "nova" },
+    { model: "gpt-4o-mini-tts", voice: "shimmer" }
+  ]
+} as const;
+
+const TTS_MODELS = {
+  OPENROUTER: AUDIO_PRESET_POOLS.OPENROUTER[0].model,
+  OPENAI: AUDIO_PRESET_POOLS.OPENAI[0].model
+} as const;
+
 export const CONFIG = {
+  DEFAULT_TEXT_PROVIDER: "openrouter",
+  DEFAULT_AUDIO_PROVIDER: "openrouter",
+
   // Default models
-  DEFAULT_METADATA_MODEL: "gpt-5.5",
-  DEFAULT_SCRIPT_MODEL: "gpt-5.5",
-  DEFAULT_SCRIPT_OUTLINE_MODEL: "gpt-5.5",
-  DEFAULT_SCRIPT_CONTENT_MODEL: "gpt-5.5",
-  DEFAULT_SCRIPT_REFINEMENT_MODEL: "gpt-5.5",
-  DEFAULT_SCRIPT_DESCRIPTION_MODEL: "gpt-5.5",
+  DEFAULT_MODEL_POOLS: MODEL_POOLS,
+  DEFAULT_METADATA_MODEL: MODEL_POOLS.METADATA[0],
+  DEFAULT_SCRIPT_MODEL: MODEL_POOLS.SCRIPT_CONTENT[0],
+  DEFAULT_SCRIPT_OUTLINE_MODEL: MODEL_POOLS.SCRIPT_OUTLINE[0],
+  DEFAULT_SCRIPT_CONTENT_MODEL: MODEL_POOLS.SCRIPT_CONTENT[0],
+  DEFAULT_SCRIPT_REFINEMENT_MODEL: MODEL_POOLS.SCRIPT_REFINEMENT[0],
+  DEFAULT_SCRIPT_DESCRIPTION_MODEL: MODEL_POOLS.SCRIPT_DESCRIPTION[0],
+  DEFAULT_TTS_MODELS: TTS_MODELS,
+  DEFAULT_TTS_MODEL: TTS_MODELS.OPENROUTER,
 
   // Default voices
-  DEFAULT_SCHOLAR_VOICE: "echo",
+  DEFAULT_AUDIO_PRESET_POOLS: AUDIO_PRESET_POOLS,
+  DEFAULT_SCHOLAR_VOICE: AUDIO_PRESET_POOLS.OPENROUTER[0].voice,
 
   // Public evaluation profile used to anchor analysis
   EVALUATION_PROFILE,
@@ -83,6 +150,7 @@ export const CONFIG = {
   // Default settings
   DEFAULT_MAX_SCRIPT_CHARS: 900,
   DEFAULT_MAX_AUDIO_CHARS: 600,
+  DEFAULT_GENERATION_RETRIES: 1,
   DEFAULT_OUTPUT_ROOT: "resources/episodes",
   DEFAULT_INTRO_BUMPER: "resources/intro.mp3",
   DEFAULT_OUTRO_BUMPER: "resources/outro.mp3",

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { Command } from 'commander';
 import { buildContext } from './context.js';
@@ -23,17 +23,21 @@ program
   .option('--start-stage <stage>', 'Start from specified stage (metadata, script, audio, merge, publish)')
   .option('--run-stage <stage>', 'Run only specified stage (metadata, script, audio, merge, publish, html)')
   .option('--feed-file <path>', 'Path to RSS feed file for HTML generation (deprecated - use --run-stage html)')
-  .option('--metadata-model <model>', 'OpenAI model for metadata stage')
-  .option('--script-model <model>', 'OpenAI model for script stage (legacy)')
-  .option('--script-outline-model <model>', 'OpenAI model for script outline stage')
-  .option('--script-content-model <model>', 'OpenAI model for script content stage')
-  .option('--script-refinement-model <model>', 'OpenAI model for script refinement stage')
-  .option('--script-description-model <model>', 'OpenAI model for script description stage')
+  .option('--text-provider <provider>', 'Text generation provider (openai, openrouter)')
+  .option('--audio-provider <provider>', 'Audio synthesis provider (openai, openrouter)')
+  .option('--metadata-model <model>', 'Model for metadata stage (default: random pool)')
+  .option('--script-model <model>', 'Model for script stage (legacy; default: random content pool)')
+  .option('--script-outline-model <model>', 'Model for script outline stage (default: random pool)')
+  .option('--script-content-model <model>', 'Model for script content stage (default: random pool)')
+  .option('--script-refinement-model <model>', 'Model for script refinement stage (default: random pool)')
+  .option('--script-description-model <model>', 'Model for script description stage (default: random pool)')
+  .option('--tts-model <model>', 'TTS model for audio synthesis')
   .option('--metadata-system-prompt <path>', 'Path to metadata system prompt file')
   .option('--metadata-prompt-template <path>', 'Path to metadata prompt template file')
   .option('--script-system-prompt <path>', 'Path to script system prompt file')
   .option('--script-prompt-template <path>', 'Path to script prompt template file')
-  .option('--scholar-voice <voice>', 'OpenAI TTS voice for scholar')
+  .option('--scholar-voice <voice>', 'TTS voice for scholar (default: provider-specific random pool)')
+  .option('--generation-retries <number>', 'Retries for malformed/failed generation stages', '1')
   .option('--intro-bumper <path>', 'Path to intro bumper audio (MP3)')
   .option('--outro-bumper <path>', 'Path to outro bumper audio (MP3)')
   .option('--max-script-chars <number>', 'Maximum characters per script chunk')
@@ -48,9 +52,10 @@ program
   .option('--feed-author <string>', 'Podcast feed author/creator')
   .option('--s3cfg <path>', 'Path to s3cmd config file')
   .option('--force', 'Force creation even if URL hash already exists')
-  .option('--dry-run', 'Skip all external operations (OpenAI API, ffmpeg, s3cmd)')
+  .option('--dry-run', 'Skip all external operations (model APIs, ffmpeg, s3cmd)')
   .option('--no-publish', 'Run everything except final upload to DigitalOcean Spaces')
   .option('--publish', 'Enable final upload to DigitalOcean Spaces (default)')
+  .option('--stop-on-error', 'Stop URL-file batch processing after the first failed URL')
   .action(async (options) => {
     try {
       if (options.urlFile) {

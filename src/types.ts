@@ -1,5 +1,7 @@
 import { EpisodeRepository } from './database.js';
 
+export type ModelProvider = 'openai' | 'openrouter';
+
 export interface Context {
   options: {
     url?: string;
@@ -7,18 +9,22 @@ export interface Context {
     outputRoot: string;
     startStage: string;
     runStage?: string;
+    textProvider: ModelProvider;
+    audioProvider: ModelProvider;
     metadataModel: string;
     scriptModel: string;
     scriptOutlineModel: string;
     scriptContentModel: string;
     scriptRefinementModel: string;
     scriptDescriptionModel: string;
+    ttsModel: string;
     metadataSystemPrompt?: string;
     metadataPromptTemplate?: string;
     scriptSystemPrompt?: string;
     scriptPromptTemplate?: string;
     scholarVoice: string;
     maxScriptChars: number;
+    generationRetries: number;
     introBumper?: string;
     outroBumper?: string;
     spacesOrigin: string;

@@ -1,12 +1,16 @@
 import type { Context, ScriptDialogue } from '../types.js';
-import OpenAI from 'openai';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { chunkDialogueByCharacters } from '../utils.js';
 import { CONFIG } from '../config.js';
+import { createAudioClient, formatProviderModel, resolveProviderModel } from '../generation.js';
+
+const TTS_INSTRUCTIONS = 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.';
 
 export async function runAudio(context: Context): Promise<void> {
   console.log('[audio] Running audio stage');
+  console.log('[audio] Provider:', context.options.audioProvider);
+  console.log('[audio] Model:', context.options.ttsModel);
   console.log('[audio] Scholar voice:', context.options.scholarVoice);
   console.log('[audio] Dry run:', context.options.dryRun);
 
@@ -66,7 +70,7 @@ export async function runAudio(context: Context): Promise<void> {
     mkdirSync(context.paths.chunksDir, { recursive: true });
   }
 
-  const openai = new OpenAI();
+  const openai = createAudioClient(context.options.audioProvider);
   const chunkMetadata: { index: number; persona: string; charCount: number; filePath: string; text: string }[] = [];
 
   const voiceForPersona = (persona: string): string => {
@@ -100,12 +104,26 @@ export async function runAudio(context: Context): Promise<void> {
 
       console.log(`[audio] Synthesizing chunk ${i + 1}/${chunks.length}: ${persona}, ${charCount} chars`);
 
-      const response = await openai.audio.speech.create({
-        model: 'gpt-4o-mini-tts',
+      const speechRequest: any = {
+        model: resolveProviderModel(context.options.audioProvider, context.options.ttsModel),
         voice,
         input: chunkText,
-        instructions: 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.'
-      });
+        response_format: 'mp3'
+      };
+
+      if (context.options.audioProvider === 'openrouter') {
+        speechRequest.provider = {
+          options: {
+            openai: {
+              instructions: TTS_INSTRUCTIONS
+            }
+          }
+        };
+      } else {
+        speechRequest.instructions = TTS_INSTRUCTIONS;
+      }
+
+      const response = await openai.audio.speech.create(speechRequest);
 
       const buffer = Buffer.from(await response.arrayBuffer());
       writeFileSync(absoluteFilePath, buffer);
@@ -122,7 +140,7 @@ export async function runAudio(context: Context): Promise<void> {
     context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.COMPLETED, {
       audio_chunks_dir: context.paths.chunksDir,
       audio_chunk_count: chunkMetadata.length,
-      audio_voice_scholar: context.options.scholarVoice,
+      audio_voice_scholar: `${context.options.scholarVoice} (${formatProviderModel(context.options.audioProvider, context.options.ttsModel)})`,
       audio_files: JSON.stringify(chunkMetadata.map(chunk => chunk.filePath))
     });
 

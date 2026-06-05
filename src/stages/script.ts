@@ -1,9 +1,9 @@
 import type { Context, ScriptDialogue } from '../types.js';
-import OpenAI from 'openai';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { CONFIG } from '../config.js';
 import { extractJsonArray, extractJsonObject, sanitizeJsonText } from '../utils.js';
+import { formatProviderModel, generateTextWithWebSearch } from '../generation.js';
 
 interface OutlineHeadline {
   title: string;
@@ -304,35 +304,28 @@ function buildProjectPopularityContext(
   };
 }
 
-async function callOpenAIWithWebSearch(
-  openai: OpenAI,
+async function callModelWithWebSearch(
+  provider: Context['options']['textProvider'],
   model: string,
   systemPrompt: string,
   userPrompt: string
 ): Promise<{ content: string; inputTokens?: number; outputTokens?: number }> {
-  const response = await (openai as any).responses.create({
+  const response = await generateTextWithWebSearch({
+    provider,
     model,
-    input: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt }
-    ],
-    tools: [
-      {
-        type: "web_search"
-      }
-    ],
-    tool_choice: "auto"
+    systemPrompt,
+    userPrompt
   });
 
   return {
-    content: response.output_text || '',
-    inputTokens: response.usage?.prompt_tokens,
-    outputTokens: response.usage?.completion_tokens
+    content: response.content,
+    ...(response.inputTokens !== undefined ? { inputTokens: response.inputTokens } : {}),
+    ...(response.outputTokens !== undefined ? { outputTokens: response.outputTokens } : {})
   };
 }
 
 async function generateOutline(
-  openai: OpenAI,
+  provider: Context['options']['textProvider'],
   title: string,
   summary: string,
   url: string,
@@ -340,15 +333,15 @@ async function generateOutline(
 ): Promise<{ outline: ScriptOutline; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 1: Generating research outline...');
   
-  const { content, inputTokens, outputTokens } = await callOpenAIWithWebSearch(
-    openai,
+  const { content, inputTokens, outputTokens } = await callModelWithWebSearch(
+    provider,
     model,
     CONFIG.PROMPTS.SCRIPT_OUTLINE_SYSTEM,
     CONFIG.PROMPTS.SCRIPT_OUTLINE_USER(title, summary, url)
   );
 
   if (!content) {
-    throw new Error('No response from OpenAI for outline generation');
+    throw new Error(`No response from ${provider} for outline generation`);
   }
 
   console.log('[script] Outline response length:', content.length);
@@ -372,22 +365,22 @@ async function generateOutline(
 }
 
 async function generateContent(
-  openai: OpenAI,
+  provider: Context['options']['textProvider'],
   outline: ScriptOutline,
   model: string
 ): Promise<{ draft: ScriptDialogue[]; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 2: Generating content draft...');
   
   const outlineText = JSON.stringify(outline, null, 2);
-  const { content, inputTokens, outputTokens } = await callOpenAIWithWebSearch(
-    openai,
+  const { content, inputTokens, outputTokens } = await callModelWithWebSearch(
+    provider,
     model,
     CONFIG.PROMPTS.SCRIPT_CONTENT_SYSTEM,
     CONFIG.PROMPTS.SCRIPT_CONTENT_USER(outlineText)
   );
 
   if (!content) {
-    throw new Error('No response from OpenAI for content generation');
+    throw new Error(`No response from ${provider} for content generation`);
   }
 
   console.log('[script] Content response length:', content.length);
@@ -428,7 +421,7 @@ async function generateContent(
 }
 
 async function refineScript(
-  openai: OpenAI,
+  provider: Context['options']['textProvider'],
   draft: ScriptDialogue[],
   outline: ScriptOutline,
   model: string
@@ -437,15 +430,15 @@ async function refineScript(
   
   const draftText = JSON.stringify(draft, null, 2);
   const outlineText = JSON.stringify(outline, null, 2);
-  const { content, inputTokens, outputTokens } = await callOpenAIWithWebSearch(
-    openai,
+  const { content, inputTokens, outputTokens } = await callModelWithWebSearch(
+    provider,
     model,
     CONFIG.PROMPTS.SCRIPT_REFINEMENT_SYSTEM,
     CONFIG.PROMPTS.SCRIPT_REFINEMENT_USER(draftText, outlineText)
   );
 
   if (!content) {
-    throw new Error('No response from OpenAI for refinement');
+    throw new Error(`No response from ${provider} for refinement`);
   }
 
   console.log('[script] Refinement response length:', content.length);
@@ -486,22 +479,22 @@ async function refineScript(
 }
 
 async function extractDescriptionNotes(
-  openai: OpenAI,
+  provider: Context['options']['textProvider'],
   script: ScriptDialogue[],
   model: string
 ): Promise<{ notes: DescriptionNotes; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 5: Extracting description notes...');
   
   const scriptText = JSON.stringify(script, null, 2);
-  const { content, inputTokens, outputTokens } = await callOpenAIWithWebSearch(
-    openai,
+  const { content, inputTokens, outputTokens } = await callModelWithWebSearch(
+    provider,
     model,
     CONFIG.PROMPTS.SCRIPT_DESCRIPTION_SYSTEM,
     CONFIG.PROMPTS.SCRIPT_DESCRIPTION_USER(scriptText)
   );
 
   if (!content) {
-    throw new Error('No response from OpenAI for description notes extraction');
+    throw new Error(`No response from ${provider} for description notes extraction`);
   }
 
   console.log('[script] Description notes response length:', content.length);
@@ -566,12 +559,40 @@ function validateScript(script: ScriptDialogue[]): void {
   console.log('[script] Validation completed successfully');
 }
 
+async function withGenerationRetries<T>(
+  label: string,
+  retries: number,
+  fn: () => Promise<T>
+): Promise<T> {
+  let lastError: unknown;
+  const attempts = retries + 1;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (attempt >= attempts) {
+        break;
+      }
+
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(`[script] ${label} failed on attempt ${attempt}/${attempts}: ${message}`);
+      console.warn(`[script] Retrying ${label}...`);
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
 export async function runScript(context: Context): Promise<void> {
   console.log('[script] Running multi-stage script generation');
+  console.log('[script] Provider:', context.options.textProvider);
   console.log('[script] Outline model:', context.options.scriptOutlineModel);
   console.log('[script] Content model:', context.options.scriptContentModel);
   console.log('[script] Refinement model:', context.options.scriptRefinementModel);
   console.log('[script] Description model:', context.options.scriptDescriptionModel);
+  console.log('[script] Generation retries:', context.options.generationRetries);
   console.log('[script] Dry run:', context.options.dryRun);
 
   if (!context.episodeId || !context.paths.scriptFile) {
@@ -600,12 +621,13 @@ export async function runScript(context: Context): Promise<void> {
   }
 
   if (context.options.dryRun) {
-    console.log('[script] Dry run: would call OpenAI APIs to generate script');
+    console.log(`[script] Dry run: would call ${context.options.textProvider} APIs to generate script`);
     console.log('[script] Dry run: Stage 1: Generate outline');
     console.log('[script] Dry run: Stage 2: Generate content');
     console.log('[script] Dry run: Stage 3: Refine script');
     console.log('[script] Dry run: Stage 4: Validate script');
     console.log('[script] Dry run: Stage 5: Extract description notes');
+    console.log(`[script] Dry run: would retry failed generation stages up to ${context.options.generationRetries} time(s)`);
     console.log('[script] Dry run: would save script to', context.paths.scriptFile);
     return;
   }
@@ -616,7 +638,6 @@ export async function runScript(context: Context): Promise<void> {
     mkdirSync(scriptDir, { recursive: true });
   }
 
-  const openai = new OpenAI();
   const title = existing.metadata_title || '';
   const summary = existing.metadata_summary || '';
   const url = existing.original_url || existing.normalized_url || '';
@@ -624,7 +645,9 @@ export async function runScript(context: Context): Promise<void> {
   try {
     // Stage 1: Generate outline
     const { outline } = 
-      await generateOutline(openai, title, summary, url, context.options.scriptOutlineModel);
+      await withGenerationRetries('outline generation', context.options.generationRetries, () =>
+        generateOutline(context.options.textProvider, title, summary, url, context.options.scriptOutlineModel)
+      );
 
     outline.project_context = buildProjectPopularityContext(context, outline);
     console.log('[script] Project context:', outline.project_context.summary);
@@ -637,36 +660,42 @@ export async function runScript(context: Context): Promise<void> {
 
     // Stage 2: Generate content
     const { draft } = 
-      await generateContent(openai, outline, context.options.scriptContentModel);
+      await withGenerationRetries('content generation', context.options.generationRetries, () =>
+        generateContent(context.options.textProvider, outline, context.options.scriptContentModel)
+      );
 
     // Stage 3: Refine script
     const { refined } = 
-      await refineScript(openai, draft, outline, context.options.scriptRefinementModel);
+      await withGenerationRetries('script refinement', context.options.generationRetries, () =>
+        refineScript(context.options.textProvider, draft, outline, context.options.scriptRefinementModel)
+      );
 
     // Stage 4: Final validation
     validateScript(refined);
 
     // Stage 5: Extract description notes
     const { notes } = 
-      await extractDescriptionNotes(openai, refined, context.options.scriptDescriptionModel);
+      await withGenerationRetries('description notes extraction', context.options.generationRetries, () =>
+        extractDescriptionNotes(context.options.textProvider, refined, context.options.scriptDescriptionModel)
+      );
 
     // Save final script to file
     writeFileSync(context.paths.scriptFile, JSON.stringify(refined, null, 2));
 
     // Update database with results
     const updates: any = {
-      script_model: `${context.options.scriptOutlineModel}+${context.options.scriptContentModel}+${context.options.scriptRefinementModel}`,
+      script_model: `${formatProviderModel(context.options.textProvider, context.options.scriptOutlineModel)}+${formatProviderModel(context.options.textProvider, context.options.scriptContentModel)}+${formatProviderModel(context.options.textProvider, context.options.scriptRefinementModel)}`,
       script_file_path: context.paths.scriptFile,
       script_segment_count: refined.length,
       
       // Multi-stage details
-      script_outline_model: context.options.scriptOutlineModel,
+      script_outline_model: formatProviderModel(context.options.textProvider, context.options.scriptOutlineModel),
       script_outline_content: JSON.stringify(outline, null, 2),
-      script_content_model: context.options.scriptContentModel,
+      script_content_model: formatProviderModel(context.options.textProvider, context.options.scriptContentModel),
       script_content_draft: JSON.stringify(draft, null, 2),
-      script_refinement_model: context.options.scriptRefinementModel,
+      script_refinement_model: formatProviderModel(context.options.textProvider, context.options.scriptRefinementModel),
       script_description_notes: JSON.stringify(notes, null, 2),
-      script_description_model: context.options.scriptDescriptionModel,
+      script_description_model: formatProviderModel(context.options.textProvider, context.options.scriptDescriptionModel),
     };
 
     context.db.updateStageStatus(context.episodeId, 'script', CONFIG.STAGE_STATUS.COMPLETED, updates);

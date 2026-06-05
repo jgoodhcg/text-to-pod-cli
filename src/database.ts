@@ -1,6 +1,15 @@
-import Database from 'better-sqlite3';
+import { createRequire } from 'module';
 import { dirname } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+
+const require = createRequire(import.meta.url);
+const { Database } = require('bun:sqlite') as {
+  Database: new (path: string) => {
+    exec(sql: string): void;
+    prepare(sql: string): any;
+    close(): void;
+  };
+};
 
 export interface EpisodeRow {
   episode_id: string;
@@ -64,7 +73,7 @@ export interface EpisodeRow {
 }
 
 export class EpisodeRepository {
-  private db: Database.Database;
+  private db: InstanceType<typeof Database>;
 
   constructor(dbPath: string) {
     // Ensure data directory exists

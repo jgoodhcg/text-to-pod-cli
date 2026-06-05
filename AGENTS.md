@@ -4,21 +4,20 @@ Follows `AGENT_BLUEPRINT.md` (version: `2026-03-14.1`)
 
 ## Project Overview
 
-A Node.js + TypeScript CLI that turns source URLs into scholarly podcast episodes using a staged pipeline: metadata extraction, script outline/content/refinement, audio synthesis, merge, and optional publish. Runtime state lives in SQLite and episode artifacts live under `resources/episodes/`.
+A Bun + TypeScript CLI that turns source URLs into scholarly podcast episodes using a staged pipeline: metadata extraction, script outline/content/refinement, audio synthesis, merge, and optional publish. Runtime state lives in SQLite and episode artifacts live under `resources/episodes/`.
 
 ## Stack
 
-- Node.js 20.x
-- TypeScript with `tsx` for local execution and `tsc` for builds
-- SQLite via `better-sqlite3`
-- OpenAI Responses + speech APIs for metadata, script generation, and audio
+- Bun 1.3.x for local execution
+- TypeScript with `tsc` for builds
+- SQLite via Bun's `bun:sqlite`
+- OpenRouter for metadata, script generation, and speech by default; direct OpenAI remains available via provider flags
 
 ## Environment
 
-- Version manager: `nvm`-compatible via `.nvmrc`
-- Version file: `.nvmrc`
+- Runtime: Bun
 - Lockfile: `package-lock.json`
-- Setup: `npm ci`
+- Setup: `npm ci` or `bun install`
 
 ## Commit Trailer Template
 
@@ -44,7 +43,7 @@ Template rules:
 | Level | Command | When |
 |-------|---------|------|
 | 1 | (none configured) | Formatter/linter not set up |
-| 2 | `npm run build` | After code changes |
+| 2 | `bun run build` | After code changes |
 | 3 | (none configured) | No unit tests set up |
 | 4 | (none configured) | No E2E tests set up |
 
@@ -65,9 +64,9 @@ Use one policy file for both paired local work and any future autonomous workflo
 - Require user confirmation before installs, upgrades, network calls with external side effects, database writes, publishing, or actions outside the repo.
 - It is acceptable to stop for clarification when scope is ambiguous.
 - Allowed verification commands without extra confirmation:
-  - `npm run build`
-  - `node dist/cli.js --help`
-  - `npm run dev -- --help`
+  - `bun run build`
+  - `bun dist/cli.js --help`
+  - `bun run dev -- --help`
 
 ### Runtime: Autonomous Workflow
 
@@ -76,7 +75,7 @@ Use one policy file for both paired local work and any future autonomous workflo
 
 ## Never Run
 
-- `npm start` or `npm run dev` with real URLs, live API calls, or `--run-stage publish`
+- `bun run start` or `bun run dev` with real URLs, live API calls, or `--run-stage publish`
 - `s3cmd *` — uploads to Spaces
 - `ffmpeg *` — mutates audio assets
 - Destructive commands like `rm -rf` or deleting `data/episodes.db` or `resources/episodes/`
@@ -86,7 +85,7 @@ Use one policy file for both paired local work and any future autonomous workflo
 - Keep diffs minimal; avoid opportunistic refactors or formatting churn.
 - Prefer `rg` for search and `apply_patch` for focused file edits.
 - Ask before running commands outside the allowed verification list.
-- When instructing users to publish, default to `npm run dev -- --run-stage publish ...` to avoid stale `dist/` builds.
+- When instructing users to publish, default to `bun run dev -- --run-stage publish ...` to avoid stale `dist/` builds.
 - For script-quality work, preserve the low-energy browsing voice and avoid introducing punchy or clickbaity tone.
 
 ## Decision Artifacts
