@@ -76,16 +76,19 @@ The script stage uses a sophisticated multi-stage process:
 - **Description Stage** (`--script-description-model`): Extract compelling description notes
 - **Evaluation Profile**: All prompts reference a public-safe interest profile so episodes stay aligned with our documented hooks, red flags, and life-lens perspectives.
 
-Default models are optimized for cost-effectiveness and quality:
-- Outline: `gpt-4o-mini` (fast, affordable research)
-- Content: `gpt-4o` (balanced quality generation)
-- Refinement: `gpt-4.1` (premium quality polishing)
-- Description: `gpt-4o-mini` (efficient metadata extraction)
+Default generation models use `gpt-5.5`:
+- Metadata: `gpt-5.5`
+- Outline: `gpt-5.5`
+- Content: `gpt-5.5`
+- Refinement: `gpt-5.5`
+- Description: `gpt-5.5`
+
+Audio synthesis uses `gpt-4o-mini-tts`.
 
 ### Voice Configuration
 
 The system now uses a single "scholar" voice instead of multiple personas:
-- `--scholar-voice`: Set the voice for the scholarly narration (default: "sage")
+- `--scholar-voice`: Set the voice for the scholarly narration (default: "echo")
 - Legacy voice options (`--operator-voice`, `--historian-voice`, `--narrator-voice`) are preserved for backward compatibility
 
 ### Episode Descriptions

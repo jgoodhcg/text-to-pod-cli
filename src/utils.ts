@@ -207,7 +207,9 @@ export function extractJsonArray(raw: string): string | undefined {
 }
 
 export function sanitizeJsonText(raw: string): string {
-  const text = raw.trim();
+  const text = raw
+    .replace(/[\u2018\u2019]/g, "'")
+    .trim();
   let result = '';
   let inString = false;
   let escape = false;
@@ -216,7 +218,12 @@ export function sanitizeJsonText(raw: string): string {
     const char = text.charAt(i);
 
     if (escape) {
-      result += char;
+      const validEscapes = ['"', '\\', '/', 'b', 'f', 'n', 'r', 't', 'u'];
+      if (!validEscapes.includes(char)) {
+        result += '\\' + char;
+      } else {
+        result += char;
+      }
       escape = false;
       continue;
     }
@@ -227,21 +234,33 @@ export function sanitizeJsonText(raw: string): string {
       continue;
     }
 
+    if (char === '\u201C' || char === '\u201D') {
+      if (inString) {
+        result += '\\"';
+      } else {
+        result += '"';
+        inString = true;
+      }
+      continue;
+    }
+
     if (char === '"') {
       result += char;
       inString = !inString;
       continue;
     }
 
-    if (inString && (char === '\n' || char === '\r' || char === '\t')) {
-      if (char === '\n') {
-        result += '\\n';
-      } else if (char === '\r') {
-        result += '\\r';
-      } else {
-        result += '\\t';
+    if (inString) {
+      const code = text.charCodeAt(i);
+      if (code < 0x20) {
+        if (char === '\n') result += '\\n';
+        else if (char === '\r') result += '\\r';
+        else if (char === '\t') result += '\\t';
+        else if (char === '\b') result += '\\b';
+        else if (char === '\f') result += '\\f';
+        else result += `\\u${code.toString(16).padStart(4, '0')}`;
+        continue;
       }
-      continue;
     }
 
     if (!inString && char === ',') {
