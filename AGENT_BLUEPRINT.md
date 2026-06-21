@@ -1,5 +1,4 @@
----
-version: "2026-03-14.1"
+version: "2026-06-17"
 ---
 
 # Agent Blueprint
@@ -20,11 +19,39 @@ Use these IDs in alignment reports for deterministic, machine-checkable outcomes
 - `BP-CORE-05` Commits happen only after explicit user approval.
 - `BP-CORE-06` Alignment responses use the required report format in this blueprint.
 - `BP-CORE-09` `AGENTS.md` stores a commit trailer template (placeholders), not concrete co-author/provider/model values.
+- `BP-CORE-11` On conflicting instructions, apply the precedence order in `[BP-PRECEDENCE]`.
 
 **SHOULD**
-- `BP-CORE-07` Keep policy lean; prefer references over duplicated rules.
+- `BP-CORE-07` Keep policy lean; prefer references over duplicated rules. See `[BP-INSTR]`.
 - `BP-CORE-08` Capture AI commit identity once per repo in `AGENTS.md` to avoid repeated prompts.
 - `BP-CORE-10` Capture user interaction profile in `AGENTS.md` on project init or alignment.
+
+---
+
+## Instruction Precedence [BP-PRECEDENCE]
+
+When instructions conflict, resolve in this order (highest wins):
+
+1. Explicit live user direction in the current session.
+2. The active roadmap work unit's scope and specification.
+3. `AGENTS.md` project policy.
+4. `AGENT_BLUEPRINT.md` defaults.
+
+Safety `[BP-SAFE]` is a gate, not a rank: destructive, irreversible, or out-of-repo actions still require confirmation even when a higher-precedence source requests them.
+
+State precedence explicitly because unresolved instruction conflicts measurably reduce instruction-following ([IFScale], arXiv:2507.11538).
+
+---
+
+## Instruction Design [BP-INSTR]
+
+How to author `AGENTS.md` and work units so agents actually follow them. Instruction-following accuracy declines as the number of active instructions rises ([IFScale]), and models attend most to the start and end of a file and least to the middle ([Lost in the Middle], arXiv:2307.03172). Write to those constraints:
+
+- `BP-INSTR-01` Keep the active instruction set small. Split rules into layered files loaded on demand; a work unit must not restate blueprint or `AGENTS.md` rules. (density)
+- `BP-INSTR-02` Order by importance. Put MUST invariants and precedence at the top of a file and easily-forgotten operational rules near the end; never bury load-bearing rules in the middle. (primacy/recency)
+- `BP-INSTR-03` One instruction, one checkable outcome. Write each rule so compliance is verifiable; prefer concrete, testable criteria over adjectives. (reduces omission under load)
+- `BP-INSTR-04` Prefer positive, specific instructions ("do X, with criterion Y"). Reserve prohibitions for named, recurring failure modes — e.g. the `Never Run` list — rather than blanket "don't." (positive + targeted-negative supervision)
+- `BP-INSTR-05` Reference over restate. Link to the canonical rule instead of copying it; duplication raises density and drifts out of sync. (reinforces `BP-CORE-07`)
 
 ---
 
@@ -90,23 +117,9 @@ Work through the validation hierarchy. Escalate only when lower levels pass.
 ### Guardrails [BP-WF-GUARD]
 
 - Run validation after changes.
-- Follow the runtime-specific execution policy defined in `AGENTS.md`; interactive sessions and autonomous workflow runs may have different command and confirmation rules.
+- Follow the execution policy defined in `AGENTS.md`.
 - Keep changes minimal and focused; avoid unrelated improvements.
 - For critical logic changes, review `git diff` before declaring completion.
-
-### Autonomous GitHub Actions Pattern [BP-WF-AUTO]
-
-When a project supports autonomous remote execution, prefer this pattern:
-
-1. Keep `roadmap/` as the canonical planning surface.
-2. Use a manually dispatched workflow (`workflow_dispatch` or equivalent CLI/API dispatch), not issue comments, as the primary remote trigger.
-3. Pass a single scoped execution handle such as `roadmap_path`; do not use free-form trigger prose as the canonical task definition.
-4. Validate that the referenced roadmap file exists under `roadmap/` and is in an executable state such as `ready` or `active`.
-5. Instruct the remote agent to apply the autonomous runtime policy from `AGENTS.md`.
-6. Store provider credentials in workflow secrets and keep provider routing/model defaults in committed repo config.
-7. Maintain a separate smoke-test workflow for validating remote runtime wiring before relying on the full implementation workflow.
-
-This keeps scope versioned with the repo, makes remote execution reproducible, and prevents trigger-time drift.
 
 ### Commits [BP-WF-COMMIT]
 
@@ -131,6 +144,11 @@ This keeps scope versioned with the repo, makes remote execution reproducible, a
      - DeepSeek → `DeepSeek <deepseek-ai@users.noreply.github.com>`
   3. **Tier 3 — Unknown** (provider not listed): `{Provider Name} <{github-org}@users.noreply.github.com>` — look up the provider's GitHub org. If truly unknown: `AI Agent <noreply@users.noreply.github.com>`
 - Derive `AI-Provider` and `AI-Model` from runtime context at commit time.
+- For `AI-Provider` and `AI-Model`, prefer the most specific authoritative source available in this order:
+  1. active session/runtime metadata exposed by the tool
+  2. tool-owned local config that controls the current session
+  3. visible UI labels, only if no better source is available
+- Do not down-convert a specific runtime model to a marketing label. Example: if Codex Desktop shows `GPT-5` in the UI but `~/.codex/config.toml` for the active session contains `model = "gpt-5.4"`, use `AI-Model: gpt-5.4`.
 - Include trailers when committing:
   - `Co-authored-by: [resolved name] <[resolved email]>`
   - `AI-Provider: [runtime provider name]` (optional; include only if known)
@@ -188,6 +206,8 @@ Note: `AI-Product` reflects the **tool**, not the model. If both models were use
 
 Calibrate agent interactions based on user context. Store in a git-ignored file (e.g., `.agent-profile.md`) referenced from `AGENTS.md`.
 
+**Response calibration (default):** Lead with the conclusion, support after. Match response length to the task — proportionate over exhaustive. The live conversation outranks the stored profile (see `[BP-PRECEDENCE]`). Store per-user specifics (response modes, explanation depth, domains) in the profile file, not here.
+
 **Prompting conditions:**
 1. **No profile exists** → Prompt to create one
 2. **Profile exists but incomplete** (missing fields from current blueprint guidance) → Prompt to fill gaps
@@ -228,38 +248,6 @@ Calibrate agent interactions based on user context. Store in a git-ignored file 
 4. Optionally create agent-specific wrappers (`CLAUDE.md`, `GEMINI.md`, etc.) using the wrapper template.
 
 Agent-specific files (`CLAUDE.md`, `GEMINI.md`, etc.) are optional and should be thin pointers to `AGENTS.md`.
-
-### Optional: Autonomous GitHub Actions Setup [BP-ADOPT-AUTO]
-
-If the project should support roadmap-driven autonomous execution in GitHub Actions:
-
-1. Add runtime-specific policy to `AGENTS.md` for both interactive local work and autonomous workflow runs.
-2. Commit any provider/model routing config the remote runtime should use.
-3. Add a manual smoke-test workflow for validating secrets and remote agent wiring.
-4. Add a `workflow_dispatch` implementation workflow with a required input such as `roadmap_path`.
-5. Validate `roadmap_path` before invoking the agent.
-6. Treat the referenced roadmap file as the canonical execution brief.
-7. Store remote provider credentials in repository or environment secrets, never in local-only config.
-
-Recommended default:
-- `roadmap/` remains canonical.
-- GitHub Actions is the remote trigger surface.
-- Workflow input is a path to a `roadmap/[ID]-[slug].md` work unit.
-- A local smoke test exists for provider/config verification without GitHub.
-
-### Reference Files [BP-ADOPT-AUTO-REF]
-
-When aligning another repo, the agent may fetch concrete reference guidance and example files from this source repository.
-
-Prefer a version-matched tag or commit ref when one exists. If no pinned ref is available, use the current paths below as the best-effort source of truth:
-
-- Guide: [https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/autonomous-github-actions.md](https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/autonomous-github-actions.md)
-- Smoke test workflow: [https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode-hello.yml](https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode-hello.yml)
-- Implement workflow: [https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode-implement.yml](https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode-implement.yml)
-- Provider config: [https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode.json](https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode.json)
-- Local smoke test: [https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode-hello-local.sh](https://raw.githubusercontent.com/jgoodhcg/agent-blueprint/main/guides/examples/opencode-hello-local.sh)
-
-These files are reference artifacts, not core invariants. Agents should adapt them to the target repo while preserving the blueprint rules above.
 
 ---
 
@@ -378,7 +366,8 @@ Template rules:
   - Claude Code -> `claude`
   - Gemini CLI -> `gemini`
   - OpenCode -> `opencode` (regardless of underlying provider/model, including z.ai)
-- Determine `AI_PROVIDER` and `AI_MODEL` from runtime model metadata.
+- Determine `AI_PROVIDER` and `AI_MODEL` from the most specific authoritative runtime metadata available. Prefer active session metadata, then tool-owned local config, then UI display labels only as a last resort.
+- Example: in Codex Desktop, if the visible label is `GPT-5` but `~/.codex/config.toml` records `model = "gpt-5.4"` for the active session, fill `AI_MODEL` with `gpt-5.4`.
 - Resolve `AI_PRODUCT_NAME` and `AI_PRODUCT_EMAIL` from the **model name** using the tiered resolution order defined in `[BP-WF-COMMIT]`.
 - Fill this template at commit time; do not persist filled values in `AGENTS.md`.
 - For multi-model commits, see `[BP-WF-COMMIT-MULTI]` — add one `Co-authored-by` line per model and comma-separate the other trailers.
@@ -394,27 +383,12 @@ Template rules:
 
 ## Execution Modes
 
-Use one policy file for both paired local work and autonomous workflow runs. Shared repo rules always apply; runtime-specific rules override only where they differ.
-
-### Shared Rules
-
 - `roadmap/` is the canonical planning surface.
 - If roadmap work unit files use numeric IDs, document the digit width used by this repo in `AGENTS.md` (blueprint default: 3).
 - Validation commands are defined above and applied when relevant.
 - Keep changes minimal and scoped to the requested work unit.
-
-### Runtime: Interactive Local
-
-- Require user confirmation before `git commit`.
-- Require user confirmation before installs, upgrades, or network calls with external side effects.
+- Require user confirmation before `git commit`, installs, upgrades, or network calls with external side effects.
 - It is acceptable to stop for clarification when scope is ambiguous.
-
-### Runtime: Autonomous Workflow
-
-- The workflow input identifies the work unit; the referenced roadmap file is the canonical brief.
-- `git commit`, branch creation, push, PR creation, and network access are allowed when required to complete the scoped work unit.
-- Use workflow secrets and committed repo config; do not depend on local machine state.
-- Fail clearly when blocked by a true ambiguity or missing prerequisite rather than inventing scope.
 
 ## Never Run
 
