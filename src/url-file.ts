@@ -3,6 +3,7 @@ import { buildContext } from './context.js';
 import { EpisodeRepository } from './database.js';
 import type { EpisodeRow } from './database.js';
 import { CONFIG } from './config.js';
+import { formatUsd } from './costs.js';
 import { runPipeline } from './runner.js';
 import { generateUrlHash } from './utils.js';
 import { join } from 'path';
@@ -132,6 +133,7 @@ export async function runUrlFileBatch(options: UrlFileOptions): Promise<void> {
     }
 
     const failures: Array<{ url: string; episodeId?: string; error: string }> = [];
+    const touchedEpisodeIds: string[] = [];
 
     for (const [index, item] of toProcess.entries()) {
       console.log(`\n[url-file] (${index + 1}/${toProcess.length}) Processing ${item.url}`);
@@ -162,9 +164,14 @@ export async function runUrlFileBatch(options: UrlFileOptions): Promise<void> {
           throw error;
         }
       } finally {
+        if (context.episodeId) {
+          touchedEpisodeIds.push(context.episodeId);
+        }
         context.db.close();
       }
     }
+
+    printBatchCostSummary(repo, touchedEpisodeIds);
 
     if (failures.length > 0) {
       console.error('\n[url-file] Batch completed with failures:');
@@ -177,4 +184,59 @@ export async function runUrlFileBatch(options: UrlFileOptions): Promise<void> {
   } finally {
     repo.close();
   }
+}
+
+function printBatchCostSummary(repo: EpisodeRepository, episodeIds: string[]): void {
+  const uniqueIds = [...new Set(episodeIds)];
+  if (uniqueIds.length === 0) {
+    return;
+  }
+
+  const rows = uniqueIds
+    .map(episodeId => repo.findByEpisodeId(episodeId))
+    .filter((row): row is EpisodeRow => row !== undefined);
+
+  const metadataCost = sumRows(rows, row => row.metadata_estimated_cost_usd);
+  const scriptCost = sumRows(rows, row => row.script_estimated_cost_usd);
+  const audioCost = sumRows(rows, row => row.audio_estimated_cost_usd);
+  const totalCost = sumRows(rows, row => row.estimated_total_cost_usd);
+  const knownTotals = rows.filter(row => toNumber(row.estimated_total_cost_usd) !== undefined).length;
+
+  console.log('\n[url-file] Estimated OpenRouter cost summary');
+  console.log(`[url-file] Episodes touched: ${rows.length}`);
+  console.log(`[url-file] Rows with cost telemetry: ${knownTotals}`);
+  console.log(`[url-file] Metadata: ${formatUsd(metadataCost)}`);
+  console.log(`[url-file] Script: ${formatUsd(scriptCost)}`);
+  console.log(`[url-file] Audio: ${formatUsd(audioCost)}`);
+  console.log(`[url-file] Total: ${formatUsd(totalCost)}`);
+
+  const snapshots = [...new Set(rows.map(row => row.cost_pricing_snapshot).filter(Boolean))];
+  if (snapshots.length > 0) {
+    console.log(`[url-file] Pricing snapshot: ${snapshots.join(', ')}`);
+  }
+}
+
+function sumRows(rows: EpisodeRow[], select: (row: EpisodeRow) => unknown): number | undefined {
+  const values = rows
+    .map(row => toNumber(select(row)))
+    .filter((value): value is number => value !== undefined);
+
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  return Math.round(values.reduce((sum, value) => sum + value, 0) * 1_000_000) / 1_000_000;
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
 }

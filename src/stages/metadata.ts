@@ -4,6 +4,7 @@ import { CONFIG } from '../config.js';
 import { extractJsonObject, sanitizeJsonText } from '../utils.js';
 import { normalizeUrl } from '../utils.js';
 import { formatProviderModel, generateTextWithWebSearch } from '../generation.js';
+import { COST_PRICING_SNAPSHOT, estimateTextCostUsd, formatUsd } from '../costs.js';
 
 export async function runMetadata(context: Context): Promise<void> {
   console.log('[metadata] Running metadata stage');
@@ -19,6 +20,7 @@ export async function runMetadata(context: Context): Promise<void> {
   if (!context.episodeId || !context.paths.episodeDir) {
     throw new Error('Episode ID and paths must be set in context');
   }
+  const episodeId = context.episodeId;
 
   if (!context.options.dryRun) {
     const normalized = normalizeUrl(context.options.url);
@@ -64,7 +66,20 @@ export async function runMetadata(context: Context): Promise<void> {
       provider: context.options.textProvider,
       model: context.options.metadataModel,
       systemPrompt: systemPrompt + "\n\nIMPORTANT: You must respond with a valid JSON object containing the metadata fields. Do not include any explanations or text outside the JSON.",
-      userPrompt
+      userPrompt,
+      onRequestFailure: failure => {
+        context.db.recordFailure({
+          episodeId,
+          stage: 'metadata',
+          stageOrder: CONFIG.PIPELINE_STAGE_ORDER.METADATA,
+          retryScope: 'provider_request',
+          attemptNumber: failure.attemptNumber,
+          maxAttempts: failure.maxAttempts,
+          willRetry: failure.willRetry,
+          model: formatProviderModel(context.options.textProvider, failure.model),
+          error: failure.error
+        });
+      }
     });
 
     console.log(`[metadata] Web search requested via ${context.options.textProvider}`);
@@ -104,11 +119,21 @@ export async function runMetadata(context: Context): Promise<void> {
     }
 
     // Update database with results
+    const estimatedCost = estimateTextCostUsd(
+      context.options.textProvider,
+      context.options.metadataModel,
+      response.inputTokens,
+      response.outputTokens
+    );
+
     const updates: any = {
       metadata_model: formatProviderModel(context.options.textProvider, context.options.metadataModel),
       metadata_title: metadata.title,
       metadata_summary: metadata.summary,
-      metadata_published_at: metadata.published_at || new Date().toISOString()
+      metadata_published_at: metadata.published_at || new Date().toISOString(),
+      metadata_input_tokens: response.inputTokens,
+      metadata_output_tokens: response.outputTokens,
+      metadata_estimated_cost_usd: estimatedCost
     };
 
     // Store related links as JSON string
@@ -119,8 +144,10 @@ export async function runMetadata(context: Context): Promise<void> {
 
 
     context.db.updateStageStatus(context.episodeId, 'metadata', CONFIG.STAGE_STATUS.COMPLETED, updates);
+    context.db.refreshEstimatedTotalCost(context.episodeId, COST_PRICING_SNAPSHOT);
 
     console.log('[metadata] Successfully extracted and saved metadata');
+    console.log(`[metadata] Usage: input=${response.inputTokens ?? 'unknown'} output=${response.outputTokens ?? 'unknown'} estimated_cost=${formatUsd(estimatedCost)}`);
     console.log(`[metadata] Title: ${metadata.title}`);
     console.log(`[metadata] Summary: ${metadata.summary}`);
     if (metadata.related_links && Array.isArray(metadata.related_links)) {
@@ -131,6 +158,14 @@ export async function runMetadata(context: Context): Promise<void> {
   } catch (error) {
     // Mark as failed
     context.db.updateStageStatus(context.episodeId, 'metadata', CONFIG.STAGE_STATUS.FAILED);
+    context.db.recordFailure({
+      episodeId,
+      stage: 'metadata',
+      stageOrder: CONFIG.PIPELINE_STAGE_ORDER.METADATA,
+      retryScope: 'stage',
+      model: formatProviderModel(context.options.textProvider, context.options.metadataModel),
+      error
+    });
     throw error;
   }
 }

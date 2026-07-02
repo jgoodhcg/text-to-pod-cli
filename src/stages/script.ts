@@ -3,7 +3,9 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { CONFIG } from '../config.js';
 import { extractJsonArray, extractJsonObject, sanitizeJsonText } from '../utils.js';
+import { COST_PRICING_SNAPSHOT, estimateTextCostUsd, formatUsd, sumEstimatedCosts } from '../costs.js';
 import { formatProviderModel, generateTextWithWebSearch } from '../generation.js';
+import type { GenerationRequestFailure } from '../generation.js';
 
 interface OutlineHeadline {
   title: string;
@@ -308,14 +310,19 @@ async function callModelWithWebSearch(
   provider: Context['options']['textProvider'],
   model: string,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  webGrounding: boolean,
+  onRequestFailure?: (failure: GenerationRequestFailure) => void
 ): Promise<{ content: string; inputTokens?: number; outputTokens?: number }> {
-  const response = await generateTextWithWebSearch({
+  const requestOptions = {
     provider,
     model,
     systemPrompt,
-    userPrompt
-  });
+    userPrompt,
+    webGrounding,
+    ...(onRequestFailure ? { onRequestFailure } : {})
+  };
+  const response = await generateTextWithWebSearch(requestOptions);
 
   return {
     content: response.content,
@@ -329,7 +336,8 @@ async function generateOutline(
   title: string,
   summary: string,
   url: string,
-  model: string
+  model: string,
+  onRequestFailure?: (failure: GenerationRequestFailure) => void
 ): Promise<{ outline: ScriptOutline; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 1: Generating research outline...');
   
@@ -337,7 +345,9 @@ async function generateOutline(
     provider,
     model,
     CONFIG.PROMPTS.SCRIPT_OUTLINE_SYSTEM,
-    CONFIG.PROMPTS.SCRIPT_OUTLINE_USER(title, summary, url)
+    CONFIG.PROMPTS.SCRIPT_OUTLINE_USER(title, summary, url),
+    true,
+    onRequestFailure
   );
 
   if (!content) {
@@ -367,7 +377,8 @@ async function generateOutline(
 async function generateContent(
   provider: Context['options']['textProvider'],
   outline: ScriptOutline,
-  model: string
+  model: string,
+  onRequestFailure?: (failure: GenerationRequestFailure) => void
 ): Promise<{ draft: ScriptDialogue[]; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 2: Generating content draft...');
   
@@ -376,7 +387,9 @@ async function generateContent(
     provider,
     model,
     CONFIG.PROMPTS.SCRIPT_CONTENT_SYSTEM,
-    CONFIG.PROMPTS.SCRIPT_CONTENT_USER(outlineText)
+    CONFIG.PROMPTS.SCRIPT_CONTENT_USER(outlineText),
+    false,
+    onRequestFailure
   );
 
   if (!content) {
@@ -424,7 +437,8 @@ async function refineScript(
   provider: Context['options']['textProvider'],
   draft: ScriptDialogue[],
   outline: ScriptOutline,
-  model: string
+  model: string,
+  onRequestFailure?: (failure: GenerationRequestFailure) => void
 ): Promise<{ refined: ScriptDialogue[]; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 3: Refining script...');
   
@@ -434,7 +448,9 @@ async function refineScript(
     provider,
     model,
     CONFIG.PROMPTS.SCRIPT_REFINEMENT_SYSTEM,
-    CONFIG.PROMPTS.SCRIPT_REFINEMENT_USER(draftText, outlineText)
+    CONFIG.PROMPTS.SCRIPT_REFINEMENT_USER(draftText, outlineText),
+    false,
+    onRequestFailure
   );
 
   if (!content) {
@@ -481,7 +497,8 @@ async function refineScript(
 async function extractDescriptionNotes(
   provider: Context['options']['textProvider'],
   script: ScriptDialogue[],
-  model: string
+  model: string,
+  onRequestFailure?: (failure: GenerationRequestFailure) => void
 ): Promise<{ notes: DescriptionNotes; inputTokens: number; outputTokens: number }> {
   console.log('[script] Stage 5: Extracting description notes...');
   
@@ -490,7 +507,9 @@ async function extractDescriptionNotes(
     provider,
     model,
     CONFIG.PROMPTS.SCRIPT_DESCRIPTION_SYSTEM,
-    CONFIG.PROMPTS.SCRIPT_DESCRIPTION_USER(scriptText)
+    CONFIG.PROMPTS.SCRIPT_DESCRIPTION_USER(scriptText),
+    false,
+    onRequestFailure
   );
 
   if (!content) {
@@ -562,27 +581,57 @@ function validateScript(script: ScriptDialogue[]): void {
 async function withGenerationRetries<T>(
   label: string,
   retries: number,
-  fn: () => Promise<T>
-): Promise<T> {
+  models: string[],
+  fn: (model: string) => Promise<T>,
+  onFailure?: (failure: {
+    error: unknown;
+    attemptNumber: number;
+    maxAttempts: number;
+    willRetry: boolean;
+    model: string;
+  }) => void
+): Promise<{ result: T; model: string }> {
   let lastError: unknown;
   const attempts = retries + 1;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
+    const model = models[Math.min(attempt - 1, models.length - 1)] || models[0];
+    if (!model) {
+      throw new Error(`No model configured for ${label}`);
+    }
+
     try {
-      return await fn();
+      return { result: await fn(model), model };
     } catch (error) {
       lastError = error;
-      if (attempt >= attempts) {
+      const willRetry = attempt < attempts;
+      onFailure?.({
+        error,
+        attemptNumber: attempt,
+        maxAttempts: attempts,
+        willRetry,
+        model
+      });
+
+      if (!willRetry) {
         break;
       }
 
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[script] ${label} failed on attempt ${attempt}/${attempts}: ${message}`);
-      console.warn(`[script] Retrying ${label}...`);
+      const nextModel = models[Math.min(attempt, models.length - 1)] || model;
+      console.warn(`[script] Retrying ${label} with model: ${nextModel}`);
     }
   }
 
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
+}
+
+function buildRetryModelSequence(preferredModel: string, pool: readonly string[]): string[] {
+  return [
+    preferredModel,
+    ...pool.filter(model => model !== preferredModel)
+  ];
 }
 
 export async function runScript(context: Context): Promise<void> {
@@ -641,13 +690,71 @@ export async function runScript(context: Context): Promise<void> {
   const title = existing.metadata_title || '';
   const summary = existing.metadata_summary || '';
   const url = existing.original_url || existing.normalized_url || '';
+  const episodeId = context.episodeId;
+  let terminalGenerationError: unknown;
 
   try {
+    const recordGenerationFailure = (
+      stageLabel: string,
+      failure: {
+        error: unknown;
+        attemptNumber: number;
+        maxAttempts: number;
+        willRetry: boolean;
+        model: string;
+      }
+    ): void => {
+      if (!failure.willRetry) {
+        terminalGenerationError = failure.error;
+      }
+
+      context.db.recordFailure({
+        episodeId,
+        stage: 'script',
+        stageOrder: CONFIG.PIPELINE_STAGE_ORDER.SCRIPT,
+        retryScope: 'script_generation',
+        attemptNumber: failure.attemptNumber,
+        maxAttempts: failure.maxAttempts,
+        willRetry: failure.willRetry,
+        model: formatProviderModel(context.options.textProvider, failure.model),
+        error: failure.error,
+        context: { script_step: stageLabel }
+      });
+    };
+    const recordRequestFailure = (
+      stageLabel: string,
+      failure: GenerationRequestFailure
+    ): void => {
+      context.db.recordFailure({
+        episodeId,
+        stage: 'script',
+        stageOrder: CONFIG.PIPELINE_STAGE_ORDER.SCRIPT,
+        retryScope: 'provider_request',
+        attemptNumber: failure.attemptNumber,
+        maxAttempts: failure.maxAttempts,
+        willRetry: failure.willRetry,
+        model: formatProviderModel(context.options.textProvider, failure.model),
+        error: failure.error,
+        context: { script_step: stageLabel }
+      });
+    };
+
     // Stage 1: Generate outline
-    const { outline } = 
-      await withGenerationRetries('outline generation', context.options.generationRetries, () =>
-        generateOutline(context.options.textProvider, title, summary, url, context.options.scriptOutlineModel)
-      );
+    const outlineAttempt = await withGenerationRetries(
+      'outline generation',
+      context.options.generationRetries,
+      buildRetryModelSequence(context.options.scriptOutlineModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_OUTLINE),
+      model => generateOutline(
+        context.options.textProvider,
+        title,
+        summary,
+        url,
+        model,
+        failure => recordRequestFailure('outline generation', failure)
+      ),
+      failure => recordGenerationFailure('outline generation', failure)
+    );
+    const { outline } = outlineAttempt.result;
 
     outline.project_context = buildProjectPopularityContext(context, outline);
     console.log('[script] Project context:', outline.project_context.summary);
@@ -659,49 +766,126 @@ export async function runScript(context: Context): Promise<void> {
     }
 
     // Stage 2: Generate content
-    const { draft } = 
-      await withGenerationRetries('content generation', context.options.generationRetries, () =>
-        generateContent(context.options.textProvider, outline, context.options.scriptContentModel)
-      );
+    const contentAttempt = await withGenerationRetries(
+      'content generation',
+      context.options.generationRetries,
+      buildRetryModelSequence(context.options.scriptContentModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_CONTENT),
+      model => generateContent(
+        context.options.textProvider,
+        outline,
+        model,
+        failure => recordRequestFailure('content generation', failure)
+      ),
+      failure => recordGenerationFailure('content generation', failure)
+    );
+    const { draft } = contentAttempt.result;
 
     // Stage 3: Refine script
-    const { refined } = 
-      await withGenerationRetries('script refinement', context.options.generationRetries, () =>
-        refineScript(context.options.textProvider, draft, outline, context.options.scriptRefinementModel)
-      );
+    const refinementAttempt = await withGenerationRetries(
+      'script refinement',
+      context.options.generationRetries,
+      buildRetryModelSequence(context.options.scriptRefinementModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_REFINEMENT),
+      model => refineScript(
+        context.options.textProvider,
+        draft,
+        outline,
+        model,
+        failure => recordRequestFailure('script refinement', failure)
+      ),
+      failure => recordGenerationFailure('script refinement', failure)
+    );
+    const { refined } = refinementAttempt.result;
 
     // Stage 4: Final validation
     validateScript(refined);
 
     // Stage 5: Extract description notes
-    const { notes } = 
-      await withGenerationRetries('description notes extraction', context.options.generationRetries, () =>
-        extractDescriptionNotes(context.options.textProvider, refined, context.options.scriptDescriptionModel)
-      );
+    const descriptionAttempt = await withGenerationRetries(
+      'description notes extraction',
+      context.options.generationRetries,
+      buildRetryModelSequence(context.options.scriptDescriptionModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_DESCRIPTION),
+      model => extractDescriptionNotes(
+        context.options.textProvider,
+        refined,
+        model,
+        failure => recordRequestFailure('description notes extraction', failure)
+      ),
+      failure => recordGenerationFailure('description notes extraction', failure)
+    );
+    const { notes } = descriptionAttempt.result;
 
     // Save final script to file
     writeFileSync(context.paths.scriptFile, JSON.stringify(refined, null, 2));
 
+    const outlineCost = estimateTextCostUsd(
+      context.options.textProvider,
+      outlineAttempt.model,
+      outlineAttempt.result.inputTokens,
+      outlineAttempt.result.outputTokens
+    );
+    const contentCost = estimateTextCostUsd(
+      context.options.textProvider,
+      contentAttempt.model,
+      contentAttempt.result.inputTokens,
+      contentAttempt.result.outputTokens
+    );
+    const refinementCost = estimateTextCostUsd(
+      context.options.textProvider,
+      refinementAttempt.model,
+      refinementAttempt.result.inputTokens,
+      refinementAttempt.result.outputTokens
+    );
+    const descriptionCost = estimateTextCostUsd(
+      context.options.textProvider,
+      descriptionAttempt.model,
+      descriptionAttempt.result.inputTokens,
+      descriptionAttempt.result.outputTokens
+    );
+    const scriptInputTokens = outlineAttempt.result.inputTokens
+      + contentAttempt.result.inputTokens
+      + refinementAttempt.result.inputTokens
+      + descriptionAttempt.result.inputTokens;
+    const scriptOutputTokens = outlineAttempt.result.outputTokens
+      + contentAttempt.result.outputTokens
+      + refinementAttempt.result.outputTokens
+      + descriptionAttempt.result.outputTokens;
+    const scriptEstimatedCost = sumEstimatedCosts(
+      outlineCost,
+      contentCost,
+      refinementCost,
+      descriptionCost
+    );
+
     // Update database with results
     const updates: any = {
-      script_model: `${formatProviderModel(context.options.textProvider, context.options.scriptOutlineModel)}+${formatProviderModel(context.options.textProvider, context.options.scriptContentModel)}+${formatProviderModel(context.options.textProvider, context.options.scriptRefinementModel)}`,
+      script_model: `${formatProviderModel(context.options.textProvider, outlineAttempt.model)}+${formatProviderModel(context.options.textProvider, contentAttempt.model)}+${formatProviderModel(context.options.textProvider, refinementAttempt.model)}`,
       script_file_path: context.paths.scriptFile,
       script_segment_count: refined.length,
+      script_input_tokens: scriptInputTokens,
+      script_output_tokens: scriptOutputTokens,
       
       // Multi-stage details
-      script_outline_model: formatProviderModel(context.options.textProvider, context.options.scriptOutlineModel),
+      script_outline_model: formatProviderModel(context.options.textProvider, outlineAttempt.model),
+      script_outline_tokens: outlineAttempt.result.inputTokens + outlineAttempt.result.outputTokens,
       script_outline_content: JSON.stringify(outline, null, 2),
-      script_content_model: formatProviderModel(context.options.textProvider, context.options.scriptContentModel),
+      script_content_model: formatProviderModel(context.options.textProvider, contentAttempt.model),
+      script_content_tokens: contentAttempt.result.inputTokens + contentAttempt.result.outputTokens,
       script_content_draft: JSON.stringify(draft, null, 2),
-      script_refinement_model: formatProviderModel(context.options.textProvider, context.options.scriptRefinementModel),
+      script_refinement_model: formatProviderModel(context.options.textProvider, refinementAttempt.model),
+      script_refinement_tokens: refinementAttempt.result.inputTokens + refinementAttempt.result.outputTokens,
       script_description_notes: JSON.stringify(notes, null, 2),
-      script_description_model: formatProviderModel(context.options.textProvider, context.options.scriptDescriptionModel),
+      script_description_model: formatProviderModel(context.options.textProvider, descriptionAttempt.model),
+      script_description_tokens: descriptionAttempt.result.inputTokens + descriptionAttempt.result.outputTokens,
+      script_estimated_cost_usd: scriptEstimatedCost,
     };
 
     context.db.updateStageStatus(context.episodeId, 'script', CONFIG.STAGE_STATUS.COMPLETED, updates);
+    context.db.refreshEstimatedTotalCost(context.episodeId, COST_PRICING_SNAPSHOT);
 
     console.log('[script] Multi-stage script generation completed successfully');
     console.log(`[script] Final script segments: ${refined.length}`);
+    console.log(`[script] Usage: input=${scriptInputTokens} output=${scriptOutputTokens} estimated_cost=${formatUsd(scriptEstimatedCost)}`);
+    console.log(`[script] Cost by step: outline=${formatUsd(outlineCost)} content=${formatUsd(contentCost)} refinement=${formatUsd(refinementCost)} description=${formatUsd(descriptionCost)}`);
     
     const estimatedMinutes = refined.reduce((sum, entry) => sum + entry.text.split(' ').length, 0) / CONFIG.WORDS_PER_MINUTE;
     console.log(`[script] Estimated audio time: ${estimatedMinutes.toFixed(1)} minutes`);
@@ -709,6 +893,15 @@ export async function runScript(context: Context): Promise<void> {
   } catch (error) {
     // Mark as failed
     context.db.updateStageStatus(context.episodeId, 'script', CONFIG.STAGE_STATUS.FAILED);
+    if (error !== terminalGenerationError) {
+      context.db.recordFailure({
+        episodeId,
+        stage: 'script',
+        stageOrder: CONFIG.PIPELINE_STAGE_ORDER.SCRIPT,
+        retryScope: 'stage',
+        error
+      });
+    }
     throw error;
   }
 }

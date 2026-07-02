@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { buildContext } from './context.js';
+import { CONFIG } from './config.js';
 import { runHnFavoritesBatch } from './hn-favorites.js';
 import { runUrlFileBatch } from './url-file.js';
 import { runPipeline } from './runner.js';
@@ -37,7 +38,7 @@ program
   .option('--script-system-prompt <path>', 'Path to script system prompt file')
   .option('--script-prompt-template <path>', 'Path to script prompt template file')
   .option('--scholar-voice <voice>', 'TTS voice for scholar (default: provider-specific random pool)')
-  .option('--generation-retries <number>', 'Retries for malformed/failed generation stages', '1')
+  .option('--generation-retries <number>', 'Retries for malformed/failed generation stages', String(CONFIG.DEFAULT_GENERATION_RETRIES))
   .option('--intro-bumper <path>', 'Path to intro bumper audio (MP3)')
   .option('--outro-bumper <path>', 'Path to outro bumper audio (MP3)')
   .option('--max-script-chars <number>', 'Maximum characters per script chunk')

@@ -122,6 +122,13 @@ export async function runPublish(context: Context): Promise<void> {
     console.log('[publish] Upload complete:', audioRemoteKey, context.options.spacesFeedKey);
   } catch (error) {
     context.db.updateStageStatus(context.episodeId, 'publish', CONFIG.STAGE_STATUS.FAILED);
+    context.db.recordFailure({
+      episodeId: context.episodeId,
+      stage: 'publish',
+      stageOrder: CONFIG.PIPELINE_STAGE_ORDER.PUBLISH,
+      retryScope: 'stage',
+      error
+    });
     throw error;
   }
 }

@@ -641,6 +641,15 @@ Important: Respond with a single JSON object only. Do not include prose, heading
     FAILED: "failed",
   } as const,
 
+  // Pipeline order for failure history. Keep this in sync if stage order changes.
+  PIPELINE_STAGE_ORDER: {
+    METADATA: 1,
+    SCRIPT: 2,
+    AUDIO: 3,
+    MERGE: 4,
+    PUBLISH: 5,
+  } as const,
+
   // Persona names
   PERSONAS: {
     SCHOLAR: "SCHOLAR",

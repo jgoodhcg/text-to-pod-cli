@@ -28,6 +28,7 @@ export interface EpisodeRow {
   metadata_related_links?: string; // JSON array of related links
   metadata_input_tokens?: number;
   metadata_output_tokens?: number;
+  metadata_estimated_cost_usd?: number;
   
   script_status: string;
   script_model?: string;
@@ -48,6 +49,7 @@ export interface EpisodeRow {
   script_description_notes?: string;
   script_description_model?: string;
   script_description_tokens?: number;
+  script_estimated_cost_usd?: number;
   
   audio_status: string;
   audio_chunks_dir?: string;
@@ -57,6 +59,8 @@ export interface EpisodeRow {
   audio_voice_narrator?: string;
   audio_voice_scholar?: string;
   audio_total_duration_sec?: number;
+  audio_input_chars?: number;
+  audio_estimated_cost_usd?: number;
   audio_files?: string;
   
   merge_status: string;
@@ -70,6 +74,43 @@ export interface EpisodeRow {
   publish_feed_remote_path?: string;
   publish_item_guid?: string;
   publish_at?: string;
+
+  estimated_total_cost_usd?: number;
+  cost_pricing_snapshot?: string;
+}
+
+export interface EpisodeFailureRow {
+  id: number;
+  episode_id?: string;
+  url_hash?: string;
+  original_url?: string;
+  stage: string;
+  stage_order: number;
+  retry_scope?: string;
+  attempt_number?: number;
+  max_attempts?: number;
+  will_retry: number;
+  model?: string;
+  error_name?: string;
+  error_message: string;
+  error_stack?: string;
+  context_json?: string;
+  created_at: string;
+}
+
+export interface RecordEpisodeFailureInput {
+  episodeId?: string;
+  urlHash?: string;
+  originalUrl?: string;
+  stage: string;
+  stageOrder: number;
+  retryScope?: string;
+  attemptNumber?: number;
+  maxAttempts?: number;
+  willRetry?: boolean;
+  model?: string;
+  error: unknown;
+  context?: Record<string, unknown>;
 }
 
 export class EpisodeRepository {
@@ -105,6 +146,7 @@ export class EpisodeRepository {
         metadata_related_links TEXT,
         metadata_input_tokens INTEGER,
         metadata_output_tokens INTEGER,
+        metadata_estimated_cost_usd REAL,
 
         script_status TEXT NOT NULL DEFAULT 'pending',
         script_model TEXT,
@@ -125,6 +167,7 @@ export class EpisodeRepository {
         script_description_notes TEXT,
         script_description_model TEXT,
         script_description_tokens INTEGER,
+        script_estimated_cost_usd REAL,
 
         audio_status TEXT NOT NULL DEFAULT 'pending',
         audio_chunks_dir TEXT,
@@ -134,6 +177,8 @@ export class EpisodeRepository {
         audio_voice_narrator TEXT,
         audio_voice_scholar TEXT,
         audio_total_duration_sec REAL,
+        audio_input_chars INTEGER,
+        audio_estimated_cost_usd REAL,
 
         merge_status TEXT NOT NULL DEFAULT 'pending',
         merged_audio_path TEXT,
@@ -145,11 +190,44 @@ export class EpisodeRepository {
         publish_audio_remote_path TEXT,
         publish_feed_remote_path TEXT,
         publish_item_guid TEXT,
-        publish_at TEXT
+        publish_at TEXT,
+
+        estimated_total_cost_usd REAL,
+        cost_pricing_snapshot TEXT
       );
     `;
     
     this.db.exec(createTableSQL);
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS episode_failures (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        episode_id TEXT,
+        url_hash TEXT,
+        original_url TEXT,
+        stage TEXT NOT NULL,
+        stage_order INTEGER NOT NULL,
+        retry_scope TEXT,
+        attempt_number INTEGER,
+        max_attempts INTEGER,
+        will_retry INTEGER NOT NULL DEFAULT 0,
+        model TEXT,
+        error_name TEXT,
+        error_message TEXT NOT NULL,
+        error_stack TEXT,
+        context_json TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
+      );
+    `);
+
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_episode_failures_episode_created ON episode_failures (episode_id, created_at)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_episode_failures_stage_created ON episode_failures (stage, created_at)');
+    try {
+      this.db.exec('ALTER TABLE episode_failures ADD COLUMN retry_scope TEXT');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
     
     // Add new columns if they don't exist (for existing databases)
     try {
@@ -234,6 +312,23 @@ export class EpisodeRepository {
         // Column already exists, ignore error
       }
     });
+
+    const telemetryColumns = [
+      'metadata_estimated_cost_usd REAL',
+      'script_estimated_cost_usd REAL',
+      'audio_input_chars INTEGER',
+      'audio_estimated_cost_usd REAL',
+      'estimated_total_cost_usd REAL',
+      'cost_pricing_snapshot TEXT'
+    ];
+
+    for (const column of telemetryColumns) {
+      try {
+        this.db.exec(`ALTER TABLE episodes ADD COLUMN ${column}`);
+      } catch (error) {
+        // Column already exists, ignore error
+      }
+    }
   }
 
   findByUrlHash(urlHash: string): EpisodeRow | undefined {
@@ -276,12 +371,16 @@ export class EpisodeRepository {
     
     // Build dynamic update query
     const fields = [`${statusField} = ?`, 'updated_at = ?'];
-    const values = [status, now];
+    const values: unknown[] = [status, now];
     
     // Add any additional fields
     Object.entries(updates).forEach(([key, value]) => {
+      if (value === undefined) {
+        return;
+      }
+
       fields.push(`${key} = ?`);
-      values.push(String(value));
+      values.push(value);
     });
     
     values.push(episodeId);
@@ -289,6 +388,50 @@ export class EpisodeRepository {
     const sql = `UPDATE episodes SET ${fields.join(', ')} WHERE episode_id = ?`;
     const stmt = this.db.prepare(sql);
     stmt.run(...values as any);
+  }
+
+  recordFailure(input: RecordEpisodeFailureInput): void {
+    const now = new Date().toISOString();
+    const episode = input.episodeId ? this.findByEpisodeId(input.episodeId) : undefined;
+    const errorDetails = serializeError(input.error);
+    const contextJson = input.context ? JSON.stringify(input.context) : null;
+    const stmt = this.db.prepare(`
+      INSERT INTO episode_failures (
+        episode_id,
+        url_hash,
+        original_url,
+        stage,
+        stage_order,
+        retry_scope,
+        attempt_number,
+        max_attempts,
+        will_retry,
+        model,
+        error_name,
+        error_message,
+        error_stack,
+        context_json,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      input.episodeId ?? null,
+      input.urlHash ?? episode?.url_hash ?? null,
+      input.originalUrl ?? episode?.original_url ?? episode?.normalized_url ?? null,
+      input.stage,
+      input.stageOrder,
+      input.retryScope ?? null,
+      input.attemptNumber ?? null,
+      input.maxAttempts ?? null,
+      input.willRetry ? 1 : 0,
+      input.model ?? null,
+      errorDetails.name,
+      errorDetails.message,
+      errorDetails.stack,
+      contextJson,
+      now
+    );
   }
 
   resetEpisodeForRegeneration(episodeId: string): void {
@@ -304,6 +447,7 @@ export class EpisodeRepository {
         metadata_related_links = NULL,
         metadata_input_tokens = NULL,
         metadata_output_tokens = NULL,
+        metadata_estimated_cost_usd = NULL,
         
         script_status = 'pending',
         script_model = NULL,
@@ -323,6 +467,7 @@ export class EpisodeRepository {
         script_description_notes = NULL,
         script_description_model = NULL,
         script_description_tokens = NULL,
+        script_estimated_cost_usd = NULL,
         
         audio_status = 'pending',
         audio_chunks_dir = NULL,
@@ -332,6 +477,8 @@ export class EpisodeRepository {
         audio_voice_narrator = NULL,
         audio_voice_scholar = NULL,
         audio_total_duration_sec = NULL,
+        audio_input_chars = NULL,
+        audio_estimated_cost_usd = NULL,
         
         merge_status = 'pending',
         merged_audio_path = NULL,
@@ -344,6 +491,9 @@ export class EpisodeRepository {
         publish_feed_remote_path = NULL,
         publish_item_guid = NULL,
         publish_at = NULL,
+
+        estimated_total_cost_usd = NULL,
+        cost_pricing_snapshot = NULL,
         
         updated_at = ?
       WHERE episode_id = ?
@@ -363,6 +513,33 @@ export class EpisodeRepository {
     stmt.run(originalUrl, normalizedUrl, now, episodeId);
   }
 
+  refreshEstimatedTotalCost(episodeId: string, pricingSnapshot: string): void {
+    const now = new Date().toISOString();
+    const row = this.findByEpisodeId(episodeId);
+    if (!row) {
+      return;
+    }
+
+    const knownCosts = [
+      toNumber(row.metadata_estimated_cost_usd),
+      toNumber(row.script_estimated_cost_usd),
+      toNumber(row.audio_estimated_cost_usd)
+    ].filter((cost): cost is number => cost !== undefined);
+
+    if (knownCosts.length === 0) {
+      return;
+    }
+
+    const total = Math.round(knownCosts.reduce((sum, cost) => sum + cost, 0) * 1_000_000) / 1_000_000;
+    const stmt = this.db.prepare(`
+      UPDATE episodes
+      SET estimated_total_cost_usd = ?, cost_pricing_snapshot = ?, updated_at = ?
+      WHERE episode_id = ?
+    `);
+
+    stmt.run(total, pricingSnapshot, now, episodeId);
+  }
+
   // Direct database access methods
   prepare(sql: string): any {
     return this.db.prepare(sql);
@@ -371,4 +548,45 @@ export class EpisodeRepository {
   close(): void {
     this.db.close();
   }
+}
+
+function serializeError(error: unknown): { name: string | null; message: string; stack: string | null } {
+  if (error instanceof Error) {
+    const metadata = 'metadata' in error ? error.metadata : undefined;
+    const metadataSuffix = metadata === undefined
+      ? ''
+      : ` | metadata=${safeJsonStringify(metadata)}`;
+    return {
+      name: error.name || null,
+      message: (error.message || String(error)) + metadataSuffix,
+      stack: error.stack || null
+    };
+  }
+
+  return {
+    name: null,
+    message: String(error),
+    stack: null
+  };
+}
+
+function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
 }

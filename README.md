@@ -109,9 +109,9 @@ Suggested default model pools:
 | Refinement | `anthropic/claude-sonnet-4.6`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.1`, `qwen/qwen3.6-plus` | Concise polish and consistency checks |
 | Description | `z-ai/glm-5.1`, `google/gemini-3.5-flash`, `qwen/qwen3.6-flash`, `google/gemma-4-31b-it` | Lower-cost summary and feed notes |
 
-OpenRouter text generation uses the `openrouter:web_fetch` server tool with the
-OpenRouter fetch engine. OpenRouter fetches and extracts URL content server-side;
-the CLI does not handle tool-call round trips itself.
+OpenRouter metadata and outline generation use the `openrouter:web_fetch` server
+tool with automatic engine selection. OpenRouter fetches and extracts URL content
+server-side; later script passes use the completed outline without web tools.
 
 Audio synthesis also uses provider-specific preset pools unless `--tts-model`
 or `--scholar-voice` is supplied. Presets pair model and voice because voice IDs

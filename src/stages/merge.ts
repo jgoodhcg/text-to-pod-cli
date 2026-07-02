@@ -77,6 +77,13 @@ export async function runMerge(context: Context): Promise<void> {
     console.log('[merge] Merged audio created at:', mergedOutputPath);
   } catch (error) {
     context.db.updateStageStatus(context.episodeId, 'merge', CONFIG.STAGE_STATUS.FAILED);
+    context.db.recordFailure({
+      episodeId: context.episodeId,
+      stage: 'merge',
+      stageOrder: CONFIG.PIPELINE_STAGE_ORDER.MERGE,
+      retryScope: 'stage',
+      error
+    });
     throw error;
   } finally {
     try {

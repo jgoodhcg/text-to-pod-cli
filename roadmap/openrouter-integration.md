@@ -18,7 +18,7 @@ provider flags.
 
 ## Constraints
 - Must maintain compatibility with existing model options in CLI
-- Metadata and script stages require web grounding
+- Metadata and outline generation require web grounding
 - OpenRouter web grounding uses the `openrouter:web_fetch` server tool
 - Need to handle model name mapping (e.g., `openai/gpt-4o` vs `gpt-4o`)
 - OpenRouter TTS requires provider model slugs such as
@@ -35,8 +35,9 @@ provider flags.
    and `--audio-provider openai|openrouter`.
 3. Add a provider adapter for metadata and script model calls.
 4. Preserve OpenAI's native Responses API `{ type: "web_search" }` request.
-5. Map OpenRouter text requests to Chat Completions with the
-   `openrouter:web_fetch` server tool.
+5. Map OpenRouter research requests to Chat Completions with the
+   `openrouter:web_fetch` server tool; content, refinement, and description
+   passes consume the generated artifacts without web tools.
 6. Configure OpenAI SDK audio calls with OpenRouter's base URL for OpenRouter TTS.
 7. Accept OpenRouter model slugs such as `google/gemini-3.5-flash`, while
    preserving direct OpenAI model slugs such as `gpt-5.5`.

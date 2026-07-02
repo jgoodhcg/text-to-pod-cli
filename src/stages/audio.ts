@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { chunkDialogueByCharacters } from '../utils.js';
 import { CONFIG } from '../config.js';
+import { COST_PRICING_SNAPSHOT, estimateSpeechCostUsd, formatUsd } from '../costs.js';
 import { createAudioClient, formatProviderModel, resolveProviderModel } from '../generation.js';
 
 const TTS_INSTRUCTIONS = 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.';
@@ -137,16 +138,40 @@ export async function runAudio(context: Context): Promise<void> {
       });
     }
 
-    context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.COMPLETED, {
+    const audioInputChars = chunkMetadata.reduce((sum, chunk) => sum + chunk.charCount, 0);
+    const estimatedCost = estimateSpeechCostUsd(
+      context.options.audioProvider,
+      context.options.ttsModel,
+      audioInputChars
+    );
+
+    const updates: any = {
       audio_chunks_dir: context.paths.chunksDir,
       audio_chunk_count: chunkMetadata.length,
       audio_voice_scholar: `${context.options.scholarVoice} (${formatProviderModel(context.options.audioProvider, context.options.ttsModel)})`,
+      audio_input_chars: audioInputChars,
       audio_files: JSON.stringify(chunkMetadata.map(chunk => chunk.filePath))
-    });
+    };
+
+    if (estimatedCost !== undefined) {
+      updates.audio_estimated_cost_usd = estimatedCost;
+    }
+
+    context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.COMPLETED, updates);
+    context.db.refreshEstimatedTotalCost(context.episodeId, COST_PRICING_SNAPSHOT);
 
     console.log('[audio] Audio chunks generated:', chunkMetadata.length);
+    console.log(`[audio] Usage: input_chars=${audioInputChars} estimated_cost=${formatUsd(estimatedCost)}`);
   } catch (error) {
     context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.FAILED);
+    context.db.recordFailure({
+      episodeId: context.episodeId,
+      stage: 'audio',
+      stageOrder: CONFIG.PIPELINE_STAGE_ORDER.AUDIO,
+      retryScope: 'stage',
+      model: formatProviderModel(context.options.audioProvider, context.options.ttsModel),
+      error
+    });
     throw error;
   }
 }
