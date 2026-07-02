@@ -85,6 +85,7 @@ Use one policy file for both paired local work and any future autonomous workflo
 - Keep diffs minimal; avoid opportunistic refactors or formatting churn.
 - Prefer `rg` for search and `apply_patch` for focused file edits.
 - Ask before running commands outside the allowed verification list.
+- Use `hn-upvoted-page-snippet.js` for manual browser-console export of visible Hacker News upvoted pages; do not commit exported content-link queue files unless explicitly requested.
 - When instructing users to publish, default to `bun run dev -- --run-stage publish ...` to avoid stale `dist/` builds.
 - For script-quality work, preserve the low-energy browsing voice and avoid introducing punchy or clickbaity tone.
 
@@ -107,6 +108,7 @@ Use one policy file for both paired local work and any future autonomous workflo
 - `data/` — SQLite database and runtime state
 - `resources/` — generated episode assets and feed artifacts
 - `roadmap/` — planning surface and work units
+- `hn-upvoted-page-snippet.js` — browser-console helper for exporting visible HN upvoted pages into URL-file queues
 - `AGENT_BLUEPRINT.md` — shared agent policy
 
 ## User Profile

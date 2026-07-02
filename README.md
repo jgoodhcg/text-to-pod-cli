@@ -70,6 +70,19 @@ bun run dev -- --episode-dir <id> --run-stage publish \
   --spaces-cover-art-key podcast/podcast-cover-art.png
 ```
 
+### Hacker News Upvoted Queue
+
+For logged-in Hacker News upvoted pages, use `hn-upvoted-page-snippet.js` as a
+browser-console helper. Open each upvoted page in the browser, paste the snippet
+into DevTools Console, and paste the copied URLs into a local queue file.
+
+The snippet extracts only the visible page. This keeps the workflow explicit and
+avoids relying on authenticated scraping from the CLI.
+
+```bash
+bun run dev -- --url-file hn-upvoted-candidates.txt --dry-run
+```
+
 ### Setup Notes
 
 - Requires Bun 1.3+.
