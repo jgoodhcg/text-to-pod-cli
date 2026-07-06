@@ -1,7 +1,7 @@
 import type { ModelProvider } from './types.js';
 import { resolveProviderModel } from './generation.js';
 
-export const COST_PRICING_SNAPSHOT = 'openrouter-api-2026-06-29';
+export const COST_PRICING_SNAPSHOT = 'openrouter-api-2026-07-02-openai-pricing-2026-07-06';
 
 interface TextPricing {
   inputPerTokenUsd: number;
@@ -9,12 +9,16 @@ interface TextPricing {
 }
 
 const OPENROUTER_TEXT_PRICING: Record<string, TextPricing> = {
-  'anthropic/claude-sonnet-4.6': { inputPerTokenUsd: 0.000003, outputPerTokenUsd: 0.000015 },
+  'anthropic/claude-sonnet-5': { inputPerTokenUsd: 0.000002, outputPerTokenUsd: 0.00001 },
   'anthropic/claude-opus-4.8': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.000025 },
   'google/gemini-3.1-pro-preview': { inputPerTokenUsd: 0.000002, outputPerTokenUsd: 0.000012 },
-  'z-ai/glm-5.1': { inputPerTokenUsd: 0.00000098, outputPerTokenUsd: 0.00000308 },
+  'z-ai/glm-5.2': { inputPerTokenUsd: 0.00000093, outputPerTokenUsd: 0.000003 },
   'google/gemini-3.5-flash': { inputPerTokenUsd: 0.0000015, outputPerTokenUsd: 0.000009 },
   'google/gemma-4-31b-it': { inputPerTokenUsd: 0.00000012, outputPerTokenUsd: 0.00000035 }
+};
+
+const OPENAI_TEXT_PRICING: Record<string, TextPricing> = {
+  'gpt-5.5': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003 }
 };
 
 const OPENROUTER_SPEECH_INPUT_PRICING: Record<string, number> = {
@@ -32,7 +36,7 @@ export function estimateTextCostUsd(
   inputTokens?: number,
   outputTokens?: number
 ): number | undefined {
-  if (provider !== 'openrouter' || inputTokens === undefined || outputTokens === undefined) {
+  if (inputTokens === undefined || outputTokens === undefined) {
     return undefined;
   }
 
@@ -41,7 +45,9 @@ export function estimateTextCostUsd(
   }
 
   const resolvedModel = resolveProviderModel(provider, model);
-  const pricing = OPENROUTER_TEXT_PRICING[resolvedModel];
+  const pricing = provider === 'openai'
+    ? OPENAI_TEXT_PRICING[resolvedModel]
+    : OPENROUTER_TEXT_PRICING[resolvedModel];
   if (!pricing) {
     return undefined;
   }

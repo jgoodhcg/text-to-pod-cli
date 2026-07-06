@@ -1,6 +1,13 @@
 import type { Context } from './types.js';
 import type { ModelProvider } from './types.js';
 import { EpisodeRepository } from './database.js';
+import {
+  buildPreferredAudioChoices,
+  buildPreferredTextChoices,
+  buildTextRetrySequence,
+  chooseAudioChoice,
+  chooseTextChoice
+} from './model-preferences.js';
 import { normalizeUrl, generateUrlHash, generateEpisodeId } from './utils.js';
 import { CONFIG } from './config.js';
 import { join, resolve } from 'path';
@@ -8,7 +15,97 @@ import { join, resolve } from 'path';
 export function buildContext(options: any): Context {
   const textProvider = parseProvider(options.textProvider, CONFIG.DEFAULT_TEXT_PROVIDER);
   const audioProvider = parseProvider(options.audioProvider, CONFIG.DEFAULT_AUDIO_PROVIDER);
-  const audioPreset = chooseAudioPreset(options.ttsModel, options.scholarVoice, audioProvider);
+  const explicitTextProvider = typeof options.textProvider === 'string' && options.textProvider.trim() !== '';
+  const explicitAudioProvider = typeof options.audioProvider === 'string' && options.audioProvider.trim() !== '';
+  const dbPath = join(process.cwd(), CONFIG.DATABASE_PATH);
+  const db = new EpisodeRepository(dbPath);
+
+  const metadataChoices = buildPreferredTextChoices({
+    db,
+    pool: CONFIG.DEFAULT_MODEL_POOLS.METADATA,
+    fallbackProvider: textProvider,
+    ...(explicitTextProvider ? { providerFilter: textProvider } : {})
+  });
+  requireAutomaticChoices(metadataChoices, options.metadataModel, 'metadata generation', '--metadata-model');
+  const metadataChoice = chooseTextChoice({
+    rawModel: options.metadataModel,
+    choices: metadataChoices,
+    fallbackModel: CONFIG.DEFAULT_METADATA_MODEL,
+    fallbackProvider: textProvider
+  });
+
+  const scriptOutlineChoices = buildPreferredTextChoices({
+    db,
+    pool: CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_OUTLINE,
+    fallbackProvider: textProvider,
+    ...(explicitTextProvider ? { providerFilter: textProvider } : {})
+  });
+  requireAutomaticChoices(scriptOutlineChoices, options.scriptOutlineModel, 'script outline generation', '--script-outline-model');
+  const scriptOutlineChoice = chooseTextChoice({
+    rawModel: options.scriptOutlineModel,
+    choices: scriptOutlineChoices,
+    fallbackModel: CONFIG.DEFAULT_SCRIPT_OUTLINE_MODEL,
+    fallbackProvider: textProvider
+  });
+
+  const scriptContentChoices = buildPreferredTextChoices({
+    db,
+    pool: CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_CONTENT,
+    fallbackProvider: textProvider,
+    ...(explicitTextProvider ? { providerFilter: textProvider } : {})
+  });
+  requireAutomaticChoices(scriptContentChoices, options.scriptContentModel || options.scriptModel, 'script content generation', '--script-content-model');
+  const scriptContentChoice = chooseTextChoice({
+    rawModel: options.scriptContentModel || options.scriptModel,
+    choices: scriptContentChoices,
+    fallbackModel: CONFIG.DEFAULT_SCRIPT_CONTENT_MODEL,
+    fallbackProvider: textProvider
+  });
+
+  const scriptRefinementChoices = buildPreferredTextChoices({
+    db,
+    pool: CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_REFINEMENT,
+    fallbackProvider: textProvider,
+    ...(explicitTextProvider ? { providerFilter: textProvider } : {})
+  });
+  requireAutomaticChoices(scriptRefinementChoices, options.scriptRefinementModel, 'script refinement', '--script-refinement-model');
+  const scriptRefinementChoice = chooseTextChoice({
+    rawModel: options.scriptRefinementModel,
+    choices: scriptRefinementChoices,
+    fallbackModel: CONFIG.DEFAULT_SCRIPT_REFINEMENT_MODEL,
+    fallbackProvider: textProvider
+  });
+
+  const scriptDescriptionChoices = buildPreferredTextChoices({
+    db,
+    pool: CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_DESCRIPTION,
+    fallbackProvider: textProvider,
+    ...(explicitTextProvider ? { providerFilter: textProvider } : {})
+  });
+  requireAutomaticChoices(scriptDescriptionChoices, options.scriptDescriptionModel, 'description notes extraction', '--script-description-model');
+  const scriptDescriptionChoice = chooseTextChoice({
+    rawModel: options.scriptDescriptionModel,
+    choices: scriptDescriptionChoices,
+    fallbackModel: CONFIG.DEFAULT_SCRIPT_DESCRIPTION_MODEL,
+    fallbackProvider: textProvider
+  });
+
+  const audioChoices = buildPreferredAudioChoices({
+    db,
+    presets: getAudioPresetChoices(),
+    fallbackProvider: audioProvider,
+    ...(explicitAudioProvider ? { providerFilter: audioProvider } : {})
+  });
+  if (!options.ttsModel && !options.scholarVoice && audioChoices.length === 0) {
+    throw new Error('No pass-rated voice samples are available. Update model sample evaluations or pass --tts-model/--scholar-voice explicitly.');
+  }
+  const defaultAudioPreset = getDefaultAudioPreset(audioProvider);
+  const audioPreset = chooseAudioChoice({
+    rawModel: options.ttsModel,
+    rawVoice: options.scholarVoice,
+    choices: audioChoices,
+    fallback: defaultAudioPreset
+  });
 
   const context: any = {
     options: {
@@ -18,13 +115,24 @@ export function buildContext(options: any): Context {
       startStage: options.startStage || 'metadata',
       runStage: options.runStage,
       textProvider,
-      audioProvider,
-      metadataModel: chooseModel(options.metadataModel, CONFIG.DEFAULT_MODEL_POOLS.METADATA, CONFIG.DEFAULT_METADATA_MODEL),
-      scriptModel: chooseModel(options.scriptModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_CONTENT, CONFIG.DEFAULT_SCRIPT_MODEL),
-      scriptOutlineModel: chooseModel(options.scriptOutlineModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_OUTLINE, CONFIG.DEFAULT_SCRIPT_OUTLINE_MODEL),
-      scriptContentModel: chooseModel(options.scriptContentModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_CONTENT, CONFIG.DEFAULT_SCRIPT_CONTENT_MODEL),
-      scriptRefinementModel: chooseModel(options.scriptRefinementModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_REFINEMENT, CONFIG.DEFAULT_SCRIPT_REFINEMENT_MODEL),
-      scriptDescriptionModel: chooseModel(options.scriptDescriptionModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_DESCRIPTION, CONFIG.DEFAULT_SCRIPT_DESCRIPTION_MODEL),
+      audioProvider: audioPreset.provider,
+      metadataProvider: metadataChoice.provider,
+      metadataModel: metadataChoice.model,
+      metadataModelChoices: buildTextRetrySequence(metadataChoice, metadataChoices),
+      scriptModel: scriptContentChoice.model,
+      scriptModelChoices: buildTextRetrySequence(scriptContentChoice, scriptContentChoices),
+      scriptOutlineProvider: scriptOutlineChoice.provider,
+      scriptOutlineModel: scriptOutlineChoice.model,
+      scriptOutlineModelChoices: buildTextRetrySequence(scriptOutlineChoice, scriptOutlineChoices),
+      scriptContentProvider: scriptContentChoice.provider,
+      scriptContentModel: scriptContentChoice.model,
+      scriptContentModelChoices: buildTextRetrySequence(scriptContentChoice, scriptContentChoices),
+      scriptRefinementProvider: scriptRefinementChoice.provider,
+      scriptRefinementModel: scriptRefinementChoice.model,
+      scriptRefinementModelChoices: buildTextRetrySequence(scriptRefinementChoice, scriptRefinementChoices),
+      scriptDescriptionProvider: scriptDescriptionChoice.provider,
+      scriptDescriptionModel: scriptDescriptionChoice.model,
+      scriptDescriptionModelChoices: buildTextRetrySequence(scriptDescriptionChoice, scriptDescriptionChoices),
       ttsModel: audioPreset.model,
       metadataSystemPrompt: options.metadataSystemPrompt,
       metadataPromptTemplate: options.metadataPromptTemplate,
@@ -60,9 +168,7 @@ export function buildContext(options: any): Context {
     context.paths.outroBumper = resolve(process.cwd(), context.options.outroBumper);
   }
 
-  // Initialize database connection
-  const dbPath = join(process.cwd(), CONFIG.DATABASE_PATH);
-  context.db = new EpisodeRepository(dbPath);
+  context.db = db;
 
   // Handle URL-based episode creation
   if (options.url) {
@@ -149,60 +255,43 @@ function parseProvider(rawProvider: unknown, fallback: string): ModelProvider {
   throw new Error(`Invalid provider "${provider}". Expected "openai" or "openrouter".`);
 }
 
-function chooseModel(rawModel: unknown, pool: readonly string[], fallback: string): string {
-  if (typeof rawModel === 'string' && rawModel.trim()) {
-    return rawModel.trim();
-  }
-
-  if (pool.length === 0) {
-    return fallback;
-  }
-
-  return pool[Math.floor(Math.random() * pool.length)] || fallback;
-}
-
-function chooseAudioPreset(
-  rawModel: unknown,
-  rawVoice: unknown,
-  provider: ModelProvider
-): { model: string; voice: string } {
-  const model = typeof rawModel === 'string' && rawModel.trim()
-    ? rawModel.trim()
-    : undefined;
-  const voice = typeof rawVoice === 'string' && rawVoice.trim()
-    ? rawVoice.trim()
-    : undefined;
-  const pool = provider === 'openai'
-    ? CONFIG.DEFAULT_AUDIO_PRESET_POOLS.OPENAI
-    : CONFIG.DEFAULT_AUDIO_PRESET_POOLS.OPENROUTER;
-  const defaultPreset = pool[0] ?? {
-    model: provider === 'openai'
-      ? CONFIG.DEFAULT_TTS_MODELS.OPENAI
-      : CONFIG.DEFAULT_TTS_MODELS.OPENROUTER,
-    voice: CONFIG.DEFAULT_SCHOLAR_VOICE
-  };
-
-  if (model && voice) {
-    return { model, voice };
-  }
-
-  if (model) {
-    const matchingPresets = pool.filter(preset => preset.model === model);
-    const preset = matchingPresets[Math.floor(Math.random() * matchingPresets.length)];
-    return { model, voice: preset?.voice ?? defaultPreset.voice };
-  }
-
-  if (voice) {
-    const matchingPresets = pool.filter(preset => preset.voice === voice);
-    const preset = matchingPresets[Math.floor(Math.random() * matchingPresets.length)];
-    return { model: preset?.model ?? defaultPreset.model, voice };
-  }
-
-  const preset = pool[Math.floor(Math.random() * pool.length)] ?? defaultPreset;
-  return { model: preset.model, voice: preset.voice };
-}
-
 function parseNonNegativeInt(rawValue: unknown, fallback: number): number {
   const parsed = Number.parseInt(String(rawValue ?? ''), 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function requireAutomaticChoices(
+  choices: readonly unknown[],
+  rawOverride: unknown,
+  label: string,
+  overrideFlag: string
+): void {
+  if (typeof rawOverride === 'string' && rawOverride.trim()) {
+    return;
+  }
+
+  if (choices.length === 0) {
+    throw new Error(`No pass-rated models are available for ${label}. Update model sample evaluations or pass ${overrideFlag} explicitly.`);
+  }
+}
+
+function getAudioPresetChoices(): Array<{ provider: ModelProvider; model: string; voice: string }> {
+  return [
+    ...CONFIG.DEFAULT_AUDIO_PRESET_POOLS.OPENROUTER.map(preset => ({ provider: 'openrouter' as const, ...preset })),
+    ...CONFIG.DEFAULT_AUDIO_PRESET_POOLS.OPENAI.map(preset => ({ provider: 'openai' as const, ...preset }))
+  ];
+}
+
+function getDefaultAudioPreset(provider: ModelProvider): { provider: ModelProvider; model: string; voice: string } {
+  const pool = provider === 'openai'
+    ? CONFIG.DEFAULT_AUDIO_PRESET_POOLS.OPENAI
+    : CONFIG.DEFAULT_AUDIO_PRESET_POOLS.OPENROUTER;
+  const preset = pool[0];
+  return {
+    provider,
+    model: preset?.model ?? (provider === 'openai'
+      ? CONFIG.DEFAULT_TTS_MODELS.OPENAI
+      : CONFIG.DEFAULT_TTS_MODELS.OPENROUTER),
+    voice: preset?.voice ?? CONFIG.DEFAULT_SCHOLAR_VOICE
+  };
 }

@@ -98,6 +98,16 @@ export interface EpisodeFailureRow {
   created_at: string;
 }
 
+export interface ModelSampleEvaluationRow {
+  sample_key: string;
+  kind: 'text' | 'audio';
+  provider: string;
+  model: string;
+  voice?: string;
+  pass_fail?: 'pass' | 'fail';
+  preference_rank?: number;
+}
+
 export interface RecordEpisodeFailureInput {
   episodeId?: string;
   urlHash?: string;
@@ -223,6 +233,65 @@ export class EpisodeRepository {
 
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_episode_failures_episode_created ON episode_failures (episode_id, created_at)');
     this.db.exec('CREATE INDEX IF NOT EXISTS idx_episode_failures_stage_created ON episode_failures (stage, created_at)');
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS model_sample_evaluations (
+        sample_key TEXT PRIMARY KEY,
+        kind TEXT NOT NULL CHECK (kind IN ('text', 'audio')),
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        voice TEXT,
+        sample_file TEXT,
+        pass_fail TEXT CHECK (pass_fail IS NULL OR pass_fail IN ('pass', 'fail')),
+        notes TEXT,
+        preference_rank INTEGER,
+        cost_estimate_usd REAL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    try {
+      this.db.exec('ALTER TABLE model_sample_evaluations ADD COLUMN preference_rank INTEGER');
+    } catch (error) {
+      // Column already exists, ignore error
+    }
+    try {
+      this.db.exec(`
+        INSERT OR IGNORE INTO model_sample_evaluations (
+          sample_key,
+          kind,
+          provider,
+          model,
+          voice,
+          sample_file,
+          pass_fail,
+          notes,
+          preference_rank,
+          cost_estimate_usd,
+          created_at,
+          updated_at
+        )
+        SELECT
+          sample_key,
+          kind,
+          provider,
+          model,
+          voice,
+          sample_file,
+          CASE rating WHEN 'up' THEN 'pass' WHEN 'down' THEN 'fail' ELSE rating END,
+          notes,
+          preference_rank,
+          cost_estimate_usd,
+          created_at,
+          updated_at
+        FROM model_sample_ratings
+      `);
+    } catch (error) {
+      // Legacy table may not exist, ignore error.
+    }
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_model_sample_evaluations_kind_pass_fail ON model_sample_evaluations (kind, pass_fail)');
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_model_sample_evaluations_preference_rank ON model_sample_evaluations (kind, preference_rank)');
+
     try {
       this.db.exec('ALTER TABLE episode_failures ADD COLUMN retry_scope TEXT');
     } catch (error) {
@@ -339,6 +408,20 @@ export class EpisodeRepository {
   findByEpisodeId(episodeId: string): EpisodeRow | undefined {
     const stmt = this.db.prepare('SELECT * FROM episodes WHERE episode_id = ?');
     return stmt.get(episodeId) as EpisodeRow | undefined;
+  }
+
+  listModelSampleEvaluations(kind: 'text' | 'audio'): ModelSampleEvaluationRow[] {
+    const stmt = this.db.prepare(`
+      SELECT sample_key, kind, provider, model, voice, pass_fail, preference_rank
+      FROM model_sample_evaluations
+      WHERE kind = ?
+      ORDER BY
+        CASE WHEN preference_rank IS NULL THEN 1 ELSE 0 END,
+        preference_rank ASC,
+        model ASC,
+        COALESCE(voice, '') ASC
+    `);
+    return stmt.all(kind) as ModelSampleEvaluationRow[];
   }
 
   insertEpisode(episode: Omit<EpisodeRow, 'created_at' | 'updated_at'>): void {

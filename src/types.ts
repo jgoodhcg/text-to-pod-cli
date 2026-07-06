@@ -2,6 +2,19 @@ import { EpisodeRepository } from './database.js';
 
 export type ModelProvider = 'openai' | 'openrouter';
 
+export interface TextModelChoice {
+  provider: ModelProvider;
+  model: string;
+  preferenceRank?: number;
+}
+
+export interface AudioPresetChoice {
+  provider: ModelProvider;
+  model: string;
+  voice: string;
+  preferenceRank?: number;
+}
+
 export interface Context {
   options: {
     url?: string;
@@ -11,12 +24,23 @@ export interface Context {
     runStage?: string;
     textProvider: ModelProvider;
     audioProvider: ModelProvider;
+    metadataProvider: ModelProvider;
     metadataModel: string;
+    metadataModelChoices: TextModelChoice[];
     scriptModel: string;
+    scriptModelChoices: TextModelChoice[];
+    scriptOutlineProvider: ModelProvider;
     scriptOutlineModel: string;
+    scriptOutlineModelChoices: TextModelChoice[];
+    scriptContentProvider: ModelProvider;
     scriptContentModel: string;
+    scriptContentModelChoices: TextModelChoice[];
+    scriptRefinementProvider: ModelProvider;
     scriptRefinementModel: string;
+    scriptRefinementModelChoices: TextModelChoice[];
+    scriptDescriptionProvider: ModelProvider;
     scriptDescriptionModel: string;
+    scriptDescriptionModelChoices: TextModelChoice[];
     ttsModel: string;
     metadataSystemPrompt?: string;
     metadataPromptTemplate?: string;

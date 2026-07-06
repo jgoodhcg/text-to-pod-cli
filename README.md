@@ -46,10 +46,10 @@ bun run dev -- --episode-dir 20251022-1430-f353a601 --run-stage publish --no-pub
 
 # Customize models for multi-stage script generation
 bun run dev -- --url https://example.com/article \
-  --script-outline-model anthropic/claude-sonnet-4.6 \
-  --script-content-model anthropic/claude-opus-4.8-fast \
+  --script-outline-model anthropic/claude-sonnet-5 \
+  --script-content-model anthropic/claude-opus-4.8 \
   --script-refinement-model google/gemini-3.1-pro-preview \
-  --script-description-model z-ai/glm-5.1
+  --script-description-model z-ai/glm-5.2
 
 # Use direct OpenAI instead of OpenRouter
 bun run dev -- --url https://example.com/article \
@@ -111,16 +111,20 @@ Default generation uses OpenRouter:
 - Audio provider: `openrouter`
 - Metadata, outline, content, refinement, and description models are selected
   randomly from small stage-specific pools unless overridden with a model flag.
+- When model sample evaluations exist, automatic selection only uses samples
+  marked `pass`; higher-ranked samples are weighted more heavily. Explicit
+  `--*-model`, `--tts-model`, and `--scholar-voice` flags still override the
+  sampled preference pool.
 
 Suggested default model pools:
 
 | Stage | Pool | Rationale |
 |-------|------|-----------|
-| Metadata | `z-ai/glm-5.1`, `google/gemini-3.5-flash`, `qwen/qwen3.6-flash`, `google/gemma-4-31b-it` | Cheap factual extraction and page reading |
-| Outline | `anthropic/claude-sonnet-4.6`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.1`, `qwen/qwen3.6-plus` | Strong source comprehension and structure |
-| Content | `anthropic/claude-sonnet-4.6`, `anthropic/claude-opus-4.8-fast`, `google/gemini-3.1-pro-preview`, `qwen/qwen3.6-max-preview` | Higher-quality long-form script drafting |
-| Refinement | `anthropic/claude-sonnet-4.6`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.1`, `qwen/qwen3.6-plus` | Concise polish and consistency checks |
-| Description | `z-ai/glm-5.1`, `google/gemini-3.5-flash`, `qwen/qwen3.6-flash`, `google/gemma-4-31b-it` | Lower-cost summary and feed notes |
+| Metadata | `z-ai/glm-5.2`, `google/gemini-3.5-flash`, `google/gemma-4-31b-it` | Cheap factual extraction and page reading |
+| Outline | `anthropic/claude-sonnet-5`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.2` | Strong source comprehension and structure |
+| Content | `anthropic/claude-sonnet-5`, `anthropic/claude-opus-4.8`, `openai/gpt-5.5`, `google/gemini-3.1-pro-preview` | Higher-quality long-form script drafting |
+| Refinement | `anthropic/claude-sonnet-5`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.2` | Concise polish and consistency checks |
+| Description | `z-ai/glm-5.2`, `google/gemini-3.5-flash`, `google/gemma-4-31b-it` | Lower-cost summary and feed notes |
 
 OpenRouter metadata and outline generation use the `openrouter:web_fetch` server
 tool with automatic engine selection. OpenRouter fetches and extracts URL content

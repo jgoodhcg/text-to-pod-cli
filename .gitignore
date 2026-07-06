@@ -15,3 +15,5 @@ dist/
 hn-upvoted-*.txt
 hn-upvoted-*-progress.md
 tmp-upvoted-urls*.txt
+
+test/model-samples/

@@ -66,27 +66,28 @@ const SCRIPT_OBJECTIVE_QUESTIONS = [
 
 const MODEL_POOLS = {
   METADATA: [
-    "z-ai/glm-5.1",
+    "z-ai/glm-5.2",
     "google/gemini-3.5-flash",
     "google/gemma-4-31b-it"
   ],
   SCRIPT_OUTLINE: [
-    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-sonnet-5",
     "google/gemini-3.1-pro-preview",
-    "z-ai/glm-5.1"
+    "z-ai/glm-5.2"
   ],
   SCRIPT_CONTENT: [
-    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-sonnet-5",
     "anthropic/claude-opus-4.8",
+    "openai/gpt-5.5",
     "google/gemini-3.1-pro-preview"
   ],
   SCRIPT_REFINEMENT: [
-    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-sonnet-5",
     "google/gemini-3.1-pro-preview",
-    "z-ai/glm-5.1"
+    "z-ai/glm-5.2"
   ],
   SCRIPT_DESCRIPTION: [
-    "z-ai/glm-5.1",
+    "z-ai/glm-5.2",
     "google/gemini-3.5-flash",
     "google/gemma-4-31b-it"
   ]

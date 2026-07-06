@@ -48,63 +48,109 @@ export function generateEpisodeId(urlHash: string): string {
   return `${date}-${time}-${urlHash}`;
 }
 
-function splitText(text: string, limit: number): string[] {
+function splitTextAtSentenceBoundaries(text: string, limit: number): string[] {
+  const sentences = splitIntoSentences(text);
+  const parts: string[] = [];
+  let current = '';
+
+  for (const sentence of sentences) {
+    if (sentence.length > limit) {
+      if (current) {
+        parts.push(current);
+        current = '';
+      }
+      parts.push(...splitLongSentence(sentence, limit));
+      continue;
+    }
+
+    const next = current ? `${current} ${sentence}` : sentence;
+    if (next.length > limit && current) {
+      parts.push(current);
+      current = sentence;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current) {
+    parts.push(current);
+  }
+
+  return parts;
+}
+
+function splitIntoSentences(text: string): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return [];
+  }
+
+  const sentenceEnd = /[.!?]["')\]]?(?=\s|$)/g;
+  const sentences: string[] = [];
+  let start = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = sentenceEnd.exec(normalized)) !== null) {
+    const end = match.index + match[0].length;
+    const sentence = normalized.slice(start, end).trim();
+    if (sentence) {
+      sentences.push(sentence);
+    }
+    start = end;
+  }
+
+  const tail = normalized.slice(start).trim();
+  if (tail) {
+    sentences.push(tail);
+  }
+
+  return sentences;
+}
+
+function splitLongSentence(text: string, limit: number): string[] {
   if (text.length <= limit) return [text];
-  
+
   const parts: string[] = [];
   let remaining = text;
-  
+
   while (remaining.length > limit) {
     let splitIndex = -1;
-    const searchEnd = limit;
     // Look backwards from limit for a safe break point
     const searchStart = Math.floor(limit * 0.7); 
-    
+
     const slice = remaining.substring(0, limit);
-    
-    // 1. Sentence terminators
-    const sentenceMatches = [
-      slice.lastIndexOf('. '),
-      slice.lastIndexOf('? '),
-      slice.lastIndexOf('! ')
+
+    // 1. Clauses
+    const clauseMatches = [
+      slice.lastIndexOf('; '),
+      slice.lastIndexOf(': '),
+      slice.lastIndexOf(', ')
     ];
-    const bestSentence = Math.max(...sentenceMatches);
-    
-    if (bestSentence > searchStart) {
-      splitIndex = bestSentence + 1; // Include the punctuation
+    const bestClause = Math.max(...clauseMatches);
+
+    if (bestClause > searchStart) {
+      splitIndex = bestClause + 1; // Include the punctuation
     } else {
-      // 2. Clauses
-      const clauseMatches = [
-        slice.lastIndexOf('; '),
-        slice.lastIndexOf(': '),
-        slice.lastIndexOf(', ')
-      ];
-      const bestClause = Math.max(...clauseMatches);
-      
-      if (bestClause > searchStart) {
-        splitIndex = bestClause + 1; // Include the punctuation
-      } else {
-        // 3. Words (space)
-        const spaceMatch = slice.lastIndexOf(' ');
-        if (spaceMatch > searchStart) {
-          splitIndex = spaceMatch; // Exclude the space (it gets trimmed from next part)
-        }
+      // 2. Words (space)
+      const spaceMatch = slice.lastIndexOf(' ');
+      if (spaceMatch > searchStart) {
+        splitIndex = spaceMatch; // Exclude the space (it gets trimmed from next part)
       }
     }
-    
-    // 4. Hard split if no natural break found
+
+    // 3. Hard split if no natural break found
     if (splitIndex === -1) {
       splitIndex = limit;
     }
-    
+
     parts.push(remaining.substring(0, splitIndex));
     remaining = remaining.substring(splitIndex).trim();
   }
-  
+
   if (remaining) {
     parts.push(remaining);
   }
-  
+
   return parts;
 }
 
@@ -122,51 +168,28 @@ export function chunkDialogueByCharacters(
   let currentPersona: string | undefined;
 
   for (const entry of dialogue) {
-    const entryLength = entry.text.length;
-    const exceedsLimit = entryLength > maxChars;
+    const parts = splitTextAtSentenceBoundaries(entry.text, maxChars);
 
-    if (exceedsLimit) {
-      // Split this entry into smaller pieces and process them
-      const parts = splitText(entry.text, maxChars);
-      
-      for (const partText of parts) {
-        const partLength = partText.length;
-        const personaChanged = currentPersona && currentPersona !== entry.persona;
-        const wouldExceed = currentCount + partLength > maxChars;
+    for (const partText of parts) {
+      const partLength = partText.length;
+      const personaChanged = currentPersona && currentPersona !== entry.persona;
+      const joinLength = currentChunk.length ? 2 : 0;
+      const wouldExceed = currentCount + joinLength + partLength > maxChars;
 
-        if ((personaChanged || wouldExceed) && currentChunk.length) {
-          chunks.push(currentChunk);
-          currentChunk = [];
-          currentCount = 0;
-          currentPersona = undefined;
-        }
-
-        if (!currentPersona) {
-          currentPersona = entry.persona;
-        }
-
-        currentChunk.push({ ...entry, text: partText });
-        currentCount += partLength;
+      if ((personaChanged || wouldExceed) && currentChunk.length) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+        currentCount = 0;
+        currentPersona = undefined;
       }
-      continue;
+
+      if (!currentPersona) {
+        currentPersona = entry.persona;
+      }
+
+      currentChunk.push({ ...entry, text: partText });
+      currentCount += (currentChunk.length > 1 ? 2 : 0) + partLength;
     }
-
-    // Normal processing for entries that fit
-    const personaChanged = currentPersona && currentPersona !== entry.persona;
-
-    if ((personaChanged || currentCount + entryLength > maxChars) && currentChunk.length) {
-      chunks.push(currentChunk);
-      currentChunk = [];
-      currentCount = 0;
-      currentPersona = undefined;
-    }
-
-    if (!currentPersona) {
-      currentPersona = entry.persona;
-    }
-
-    currentChunk.push(entry);
-    currentCount += entryLength;
   }
 
   if (currentChunk.length) {

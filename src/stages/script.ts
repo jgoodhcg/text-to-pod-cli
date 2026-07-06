@@ -1,4 +1,4 @@
-import type { Context, ScriptDialogue } from '../types.js';
+import type { Context, ScriptDialogue, TextModelChoice } from '../types.js';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 import { CONFIG } from '../config.js';
@@ -581,27 +581,27 @@ function validateScript(script: ScriptDialogue[]): void {
 async function withGenerationRetries<T>(
   label: string,
   retries: number,
-  models: string[],
-  fn: (model: string) => Promise<T>,
+  models: TextModelChoice[],
+  fn: (choice: TextModelChoice) => Promise<T>,
   onFailure?: (failure: {
     error: unknown;
     attemptNumber: number;
     maxAttempts: number;
     willRetry: boolean;
-    model: string;
+    choice: TextModelChoice;
   }) => void
-): Promise<{ result: T; model: string }> {
+): Promise<{ result: T; provider: TextModelChoice['provider']; model: string }> {
   let lastError: unknown;
   const attempts = retries + 1;
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
-    const model = models[Math.min(attempt - 1, models.length - 1)] || models[0];
-    if (!model) {
+    const choice = models[Math.min(attempt - 1, models.length - 1)] || models[0];
+    if (!choice) {
       throw new Error(`No model configured for ${label}`);
     }
 
     try {
-      return { result: await fn(model), model };
+      return { result: await fn(choice), provider: choice.provider, model: choice.model };
     } catch (error) {
       lastError = error;
       const willRetry = attempt < attempts;
@@ -610,7 +610,7 @@ async function withGenerationRetries<T>(
         attemptNumber: attempt,
         maxAttempts: attempts,
         willRetry,
-        model
+        choice
       });
 
       if (!willRetry) {
@@ -619,28 +619,20 @@ async function withGenerationRetries<T>(
 
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[script] ${label} failed on attempt ${attempt}/${attempts}: ${message}`);
-      const nextModel = models[Math.min(attempt, models.length - 1)] || model;
-      console.warn(`[script] Retrying ${label} with model: ${nextModel}`);
+      const nextChoice = models[Math.min(attempt, models.length - 1)] || choice;
+      console.warn(`[script] Retrying ${label} with model: ${formatProviderModel(nextChoice.provider, nextChoice.model)}`);
     }
   }
 
   throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
-function buildRetryModelSequence(preferredModel: string, pool: readonly string[]): string[] {
-  return [
-    preferredModel,
-    ...pool.filter(model => model !== preferredModel)
-  ];
-}
-
 export async function runScript(context: Context): Promise<void> {
   console.log('[script] Running multi-stage script generation');
-  console.log('[script] Provider:', context.options.textProvider);
-  console.log('[script] Outline model:', context.options.scriptOutlineModel);
-  console.log('[script] Content model:', context.options.scriptContentModel);
-  console.log('[script] Refinement model:', context.options.scriptRefinementModel);
-  console.log('[script] Description model:', context.options.scriptDescriptionModel);
+  console.log('[script] Outline model:', formatProviderModel(context.options.scriptOutlineProvider, context.options.scriptOutlineModel));
+  console.log('[script] Content model:', formatProviderModel(context.options.scriptContentProvider, context.options.scriptContentModel));
+  console.log('[script] Refinement model:', formatProviderModel(context.options.scriptRefinementProvider, context.options.scriptRefinementModel));
+  console.log('[script] Description model:', formatProviderModel(context.options.scriptDescriptionProvider, context.options.scriptDescriptionModel));
   console.log('[script] Generation retries:', context.options.generationRetries);
   console.log('[script] Dry run:', context.options.dryRun);
 
@@ -670,7 +662,7 @@ export async function runScript(context: Context): Promise<void> {
   }
 
   if (context.options.dryRun) {
-    console.log(`[script] Dry run: would call ${context.options.textProvider} APIs to generate script`);
+    console.log('[script] Dry run: would call configured text APIs to generate script');
     console.log('[script] Dry run: Stage 1: Generate outline');
     console.log('[script] Dry run: Stage 2: Generate content');
     console.log('[script] Dry run: Stage 3: Refine script');
@@ -701,7 +693,7 @@ export async function runScript(context: Context): Promise<void> {
         attemptNumber: number;
         maxAttempts: number;
         willRetry: boolean;
-        model: string;
+        choice: TextModelChoice;
       }
     ): void => {
       if (!failure.willRetry) {
@@ -716,13 +708,14 @@ export async function runScript(context: Context): Promise<void> {
         attemptNumber: failure.attemptNumber,
         maxAttempts: failure.maxAttempts,
         willRetry: failure.willRetry,
-        model: formatProviderModel(context.options.textProvider, failure.model),
+        model: formatProviderModel(failure.choice.provider, failure.choice.model),
         error: failure.error,
         context: { script_step: stageLabel }
       });
     };
     const recordRequestFailure = (
       stageLabel: string,
+      provider: TextModelChoice['provider'],
       failure: GenerationRequestFailure
     ): void => {
       context.db.recordFailure({
@@ -733,7 +726,7 @@ export async function runScript(context: Context): Promise<void> {
         attemptNumber: failure.attemptNumber,
         maxAttempts: failure.maxAttempts,
         willRetry: failure.willRetry,
-        model: formatProviderModel(context.options.textProvider, failure.model),
+        model: formatProviderModel(provider, failure.model),
         error: failure.error,
         context: { script_step: stageLabel }
       });
@@ -743,14 +736,14 @@ export async function runScript(context: Context): Promise<void> {
     const outlineAttempt = await withGenerationRetries(
       'outline generation',
       context.options.generationRetries,
-      buildRetryModelSequence(context.options.scriptOutlineModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_OUTLINE),
-      model => generateOutline(
-        context.options.textProvider,
+      context.options.scriptOutlineModelChoices,
+      choice => generateOutline(
+        choice.provider,
         title,
         summary,
         url,
-        model,
-        failure => recordRequestFailure('outline generation', failure)
+        choice.model,
+        failure => recordRequestFailure('outline generation', choice.provider, failure)
       ),
       failure => recordGenerationFailure('outline generation', failure)
     );
@@ -769,12 +762,12 @@ export async function runScript(context: Context): Promise<void> {
     const contentAttempt = await withGenerationRetries(
       'content generation',
       context.options.generationRetries,
-      buildRetryModelSequence(context.options.scriptContentModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_CONTENT),
-      model => generateContent(
-        context.options.textProvider,
+      context.options.scriptContentModelChoices,
+      choice => generateContent(
+        choice.provider,
         outline,
-        model,
-        failure => recordRequestFailure('content generation', failure)
+        choice.model,
+        failure => recordRequestFailure('content generation', choice.provider, failure)
       ),
       failure => recordGenerationFailure('content generation', failure)
     );
@@ -784,13 +777,13 @@ export async function runScript(context: Context): Promise<void> {
     const refinementAttempt = await withGenerationRetries(
       'script refinement',
       context.options.generationRetries,
-      buildRetryModelSequence(context.options.scriptRefinementModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_REFINEMENT),
-      model => refineScript(
-        context.options.textProvider,
+      context.options.scriptRefinementModelChoices,
+      choice => refineScript(
+        choice.provider,
         draft,
         outline,
-        model,
-        failure => recordRequestFailure('script refinement', failure)
+        choice.model,
+        failure => recordRequestFailure('script refinement', choice.provider, failure)
       ),
       failure => recordGenerationFailure('script refinement', failure)
     );
@@ -803,12 +796,12 @@ export async function runScript(context: Context): Promise<void> {
     const descriptionAttempt = await withGenerationRetries(
       'description notes extraction',
       context.options.generationRetries,
-      buildRetryModelSequence(context.options.scriptDescriptionModel, CONFIG.DEFAULT_MODEL_POOLS.SCRIPT_DESCRIPTION),
-      model => extractDescriptionNotes(
-        context.options.textProvider,
+      context.options.scriptDescriptionModelChoices,
+      choice => extractDescriptionNotes(
+        choice.provider,
         refined,
-        model,
-        failure => recordRequestFailure('description notes extraction', failure)
+        choice.model,
+        failure => recordRequestFailure('description notes extraction', choice.provider, failure)
       ),
       failure => recordGenerationFailure('description notes extraction', failure)
     );
@@ -818,25 +811,25 @@ export async function runScript(context: Context): Promise<void> {
     writeFileSync(context.paths.scriptFile, JSON.stringify(refined, null, 2));
 
     const outlineCost = estimateTextCostUsd(
-      context.options.textProvider,
+      outlineAttempt.provider,
       outlineAttempt.model,
       outlineAttempt.result.inputTokens,
       outlineAttempt.result.outputTokens
     );
     const contentCost = estimateTextCostUsd(
-      context.options.textProvider,
+      contentAttempt.provider,
       contentAttempt.model,
       contentAttempt.result.inputTokens,
       contentAttempt.result.outputTokens
     );
     const refinementCost = estimateTextCostUsd(
-      context.options.textProvider,
+      refinementAttempt.provider,
       refinementAttempt.model,
       refinementAttempt.result.inputTokens,
       refinementAttempt.result.outputTokens
     );
     const descriptionCost = estimateTextCostUsd(
-      context.options.textProvider,
+      descriptionAttempt.provider,
       descriptionAttempt.model,
       descriptionAttempt.result.inputTokens,
       descriptionAttempt.result.outputTokens
@@ -858,23 +851,23 @@ export async function runScript(context: Context): Promise<void> {
 
     // Update database with results
     const updates: any = {
-      script_model: `${formatProviderModel(context.options.textProvider, outlineAttempt.model)}+${formatProviderModel(context.options.textProvider, contentAttempt.model)}+${formatProviderModel(context.options.textProvider, refinementAttempt.model)}`,
+      script_model: `${formatProviderModel(outlineAttempt.provider, outlineAttempt.model)}+${formatProviderModel(contentAttempt.provider, contentAttempt.model)}+${formatProviderModel(refinementAttempt.provider, refinementAttempt.model)}`,
       script_file_path: context.paths.scriptFile,
       script_segment_count: refined.length,
       script_input_tokens: scriptInputTokens,
       script_output_tokens: scriptOutputTokens,
       
       // Multi-stage details
-      script_outline_model: formatProviderModel(context.options.textProvider, outlineAttempt.model),
+      script_outline_model: formatProviderModel(outlineAttempt.provider, outlineAttempt.model),
       script_outline_tokens: outlineAttempt.result.inputTokens + outlineAttempt.result.outputTokens,
       script_outline_content: JSON.stringify(outline, null, 2),
-      script_content_model: formatProviderModel(context.options.textProvider, contentAttempt.model),
+      script_content_model: formatProviderModel(contentAttempt.provider, contentAttempt.model),
       script_content_tokens: contentAttempt.result.inputTokens + contentAttempt.result.outputTokens,
       script_content_draft: JSON.stringify(draft, null, 2),
-      script_refinement_model: formatProviderModel(context.options.textProvider, refinementAttempt.model),
+      script_refinement_model: formatProviderModel(refinementAttempt.provider, refinementAttempt.model),
       script_refinement_tokens: refinementAttempt.result.inputTokens + refinementAttempt.result.outputTokens,
       script_description_notes: JSON.stringify(notes, null, 2),
-      script_description_model: formatProviderModel(context.options.textProvider, descriptionAttempt.model),
+      script_description_model: formatProviderModel(descriptionAttempt.provider, descriptionAttempt.model),
       script_description_tokens: descriptionAttempt.result.inputTokens + descriptionAttempt.result.outputTokens,
       script_estimated_cost_usd: scriptEstimatedCost,
     };

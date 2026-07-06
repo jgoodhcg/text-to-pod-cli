@@ -8,7 +8,7 @@ import { COST_PRICING_SNAPSHOT, estimateTextCostUsd, formatUsd } from '../costs.
 
 export async function runMetadata(context: Context): Promise<void> {
   console.log('[metadata] Running metadata stage');
-  console.log('[metadata] Provider:', context.options.textProvider);
+  console.log('[metadata] Provider:', context.options.metadataProvider);
   console.log('[metadata] Model:', context.options.metadataModel);
   console.log('[metadata] URL:', context.options.url);
   console.log('[metadata] Dry run:', context.options.dryRun);
@@ -63,7 +63,7 @@ export async function runMetadata(context: Context): Promise<void> {
 
   try {
     const response = await generateTextWithWebSearch({
-      provider: context.options.textProvider,
+      provider: context.options.metadataProvider,
       model: context.options.metadataModel,
       systemPrompt: systemPrompt + "\n\nIMPORTANT: You must respond with a valid JSON object containing the metadata fields. Do not include any explanations or text outside the JSON.",
       userPrompt,
@@ -76,17 +76,17 @@ export async function runMetadata(context: Context): Promise<void> {
           attemptNumber: failure.attemptNumber,
           maxAttempts: failure.maxAttempts,
           willRetry: failure.willRetry,
-          model: formatProviderModel(context.options.textProvider, failure.model),
+          model: formatProviderModel(context.options.metadataProvider, failure.model),
           error: failure.error
         });
       }
     });
 
-    console.log(`[metadata] Web search requested via ${context.options.textProvider}`);
+    console.log(`[metadata] Web search requested via ${context.options.metadataProvider}`);
 
     const finalContent = response.content;
     if (!finalContent) {
-      throw new Error(`No response from ${context.options.textProvider}`);
+      throw new Error(`No response from ${context.options.metadataProvider}`);
     }
 
     console.log('[metadata] Raw response length:', finalContent.length);
@@ -95,7 +95,7 @@ export async function runMetadata(context: Context): Promise<void> {
     // Extract JSON from response - more robust approach
     const jsonContentRaw = extractJsonObject(finalContent);
     if (!jsonContentRaw) {
-      throw new Error(`Failed to locate JSON object in ${context.options.textProvider} response`);
+      throw new Error(`Failed to locate JSON object in ${context.options.metadataProvider} response`);
     }
 
     const jsonContent = sanitizeJsonText(jsonContentRaw);
@@ -110,7 +110,7 @@ export async function runMetadata(context: Context): Promise<void> {
       console.error('[metadata] JSON parse error:', parseError);
       console.error('[metadata] Problematic JSON:', jsonContent);
       const message = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse JSON from ${context.options.textProvider} response: ${message}`);
+      throw new Error(`Failed to parse JSON from ${context.options.metadataProvider} response: ${message}`);
     }
     
     // Validate required fields
@@ -120,14 +120,14 @@ export async function runMetadata(context: Context): Promise<void> {
 
     // Update database with results
     const estimatedCost = estimateTextCostUsd(
-      context.options.textProvider,
+      context.options.metadataProvider,
       context.options.metadataModel,
       response.inputTokens,
       response.outputTokens
     );
 
     const updates: any = {
-      metadata_model: formatProviderModel(context.options.textProvider, context.options.metadataModel),
+      metadata_model: formatProviderModel(context.options.metadataProvider, context.options.metadataModel),
       metadata_title: metadata.title,
       metadata_summary: metadata.summary,
       metadata_published_at: metadata.published_at || new Date().toISOString(),
@@ -163,7 +163,7 @@ export async function runMetadata(context: Context): Promise<void> {
       stage: 'metadata',
       stageOrder: CONFIG.PIPELINE_STAGE_ORDER.METADATA,
       retryScope: 'stage',
-      model: formatProviderModel(context.options.textProvider, context.options.metadataModel),
+      model: formatProviderModel(context.options.metadataProvider, context.options.metadataModel),
       error
     });
     throw error;

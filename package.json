@@ -5,6 +5,8 @@
   "main": "dist/cli.js",
   "scripts": {
     "dev": "bun --env-file=.secrets.env src/cli.ts",
+    "samples:models": "bun --env-file=.secrets.env tools/model-samples/generate.ts",
+    "samples:dashboard": "bun tools/model-samples/dashboard.ts",
     "start": "bun dist/cli.js",
     "build": "tsc",
     "clean": "rm -rf dist",
