@@ -11,23 +11,22 @@ export function buildPreferredTextChoices(input: {
 }): TextModelChoice[] {
   const evaluations = input.db.listModelSampleEvaluations('text');
   if (evaluations.length === 0) {
-    return input.pool.map(model => ({
-      provider: input.providerFilter ?? input.fallbackProvider,
-      model
-    }));
+    return input.pool.map(model => buildDefaultTextChoice(model, input.fallbackProvider, input.providerFilter));
   }
 
   const pool = new Set(input.pool);
   const choices = evaluations
     .filter(row => row.pass_fail === 'pass')
+    .filter(row => typeof row.preference_rank === 'number')
     .filter(row => pool.has(row.model))
     .filter(row => !input.providerFilter || row.provider === input.providerFilter)
     .filter(row => isModelProvider(row.provider))
     .map(row => ({
-      provider: row.provider as ModelProvider,
+      provider: resolveDefaultTextProvider(row.model, row.provider as ModelProvider, input.providerFilter),
       model: row.model,
       ...(typeof row.preference_rank === 'number' ? { preferenceRank: row.preference_rank } : {})
     }))
+    .reduce<TextModelChoice[]>((deduped, choice) => upsertPreferredTextChoice(deduped, choice), [])
     .sort(compareTextChoices);
 
   return choices;
@@ -53,9 +52,14 @@ export function buildTextRetrySequence(
   selected: TextModelChoice,
   choices: readonly TextModelChoice[]
 ): TextModelChoice[] {
+  const providerFallback = buildTextProviderFallback(selected);
   return [
     selected,
-    ...choices.filter(choice => !sameTextChoice(choice, selected)).sort(compareTextChoices)
+    ...(providerFallback ? [providerFallback] : []),
+    ...choices
+      .filter(choice => !sameTextChoice(choice, selected))
+      .filter(choice => !providerFallback || !sameTextChoice(choice, providerFallback))
+      .sort(compareTextChoices)
   ];
 }
 
@@ -153,12 +157,76 @@ function sameTextChoice(a: TextModelChoice, b: TextModelChoice): boolean {
   return a.provider === b.provider && a.model === b.model;
 }
 
+function buildDefaultTextChoice(
+  model: string,
+  fallbackProvider: ModelProvider,
+  providerFilter?: ModelProvider
+): TextModelChoice {
+  return {
+    provider: resolveDefaultTextProvider(model, fallbackProvider, providerFilter),
+    model
+  };
+}
+
+function resolveDefaultTextProvider(
+  model: string,
+  provider: ModelProvider,
+  providerFilter?: ModelProvider
+): ModelProvider {
+  if (providerFilter) {
+    return providerFilter;
+  }
+
+  // OpenAI models are available through both OpenRouter and direct OpenAI. By
+  // default, try OpenRouter first so episode generation stays on one billing
+  // surface; buildTextRetrySequence adds direct OpenAI as the next fallback.
+  if (isOpenAIModel(model)) {
+    return 'openrouter';
+  }
+
+  return provider;
+}
+
+function buildTextProviderFallback(selected: TextModelChoice): TextModelChoice | undefined {
+  if (selected.provider === 'openrouter' && isOpenAIModel(selected.model)) {
+    return {
+      provider: 'openai',
+      model: selected.model,
+      ...(typeof selected.preferenceRank === 'number' ? { preferenceRank: selected.preferenceRank } : {})
+    };
+  }
+
+  return undefined;
+}
+
+function isOpenAIModel(model: string): boolean {
+  return model.startsWith('openai/');
+}
+
+function upsertPreferredTextChoice(
+  choices: TextModelChoice[],
+  next: TextModelChoice
+): TextModelChoice[] {
+  const existingIndex = choices.findIndex(choice => sameTextChoice(choice, next));
+  if (existingIndex === -1) {
+    choices.push(next);
+    return choices;
+  }
+
+  const existing = choices[existingIndex]!;
+  if (compareTextChoices(next, existing) < 0) {
+    choices[existingIndex] = next;
+  }
+
+  return choices;
+}
+
 function buildAudioChoiceKey(choice: StagePreset): string {
   return [choice.provider, choice.model, choice.voice].join(':');
 }
 
 function compareTextChoices(a: TextModelChoice, b: TextModelChoice): number {
-  return compareRankedChoices(a, b) || a.provider.localeCompare(b.provider) || a.model.localeCompare(b.model);
+  return compareRankedChoices(a, b) || compareProviderPriority(a.provider, b.provider) || a.model.localeCompare(b.model);
 }
 
 function compareAudioChoices(a: AudioPresetChoice, b: AudioPresetChoice): number {
@@ -175,4 +243,12 @@ function compareRankedChoices(
   const aRank = a.preferenceRank ?? Number.MAX_SAFE_INTEGER;
   const bRank = b.preferenceRank ?? Number.MAX_SAFE_INTEGER;
   return aRank - bRank;
+}
+
+function compareProviderPriority(a: ModelProvider, b: ModelProvider): number {
+  return providerPriority(a) - providerPriority(b);
+}
+
+function providerPriority(provider: ModelProvider): number {
+  return provider === 'openrouter' ? 0 : 1;
 }

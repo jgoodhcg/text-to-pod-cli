@@ -46,8 +46,8 @@ bun run dev -- --episode-dir 20251022-1430-f353a601 --run-stage publish --no-pub
 
 # Customize models for multi-stage script generation
 bun run dev -- --url https://example.com/article \
-  --script-outline-model anthropic/claude-sonnet-5 \
-  --script-content-model anthropic/claude-opus-4.8 \
+  --script-outline-model google/gemini-3.1-pro-preview \
+  --script-content-model openai/gpt-5.5 \
   --script-refinement-model google/gemini-3.1-pro-preview \
   --script-description-model z-ai/glm-5.2
 
@@ -118,13 +118,17 @@ Default generation uses OpenRouter:
 
 Suggested default model pools:
 
+Automatic text selection uses ranked, pass-rated model samples only. Metadata
+and outline stages use OpenRouter web fetch, so their pools favor source
+retrieval and synthesis; later stages favor ranked quality and cost balance.
+
 | Stage | Pool | Rationale |
 |-------|------|-----------|
-| Metadata | `z-ai/glm-5.2`, `google/gemini-3.5-flash`, `google/gemma-4-31b-it` | Cheap factual extraction and page reading |
-| Outline | `anthropic/claude-sonnet-5`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.2` | Strong source comprehension and structure |
-| Content | `anthropic/claude-sonnet-5`, `anthropic/claude-opus-4.8`, `openai/gpt-5.5`, `google/gemini-3.1-pro-preview` | Higher-quality long-form script drafting |
-| Refinement | `anthropic/claude-sonnet-5`, `google/gemini-3.1-pro-preview`, `z-ai/glm-5.2` | Concise polish and consistency checks |
-| Description | `z-ai/glm-5.2`, `google/gemini-3.5-flash`, `google/gemma-4-31b-it` | Lower-cost summary and feed notes |
+| Metadata | `google/gemma-4-31b-it`, `z-ai/glm-5.2`, `google/gemini-3.5-flash`, `deepseek/deepseek-v4-pro`, `minimax/minimax-m3` | Cheap factual extraction with ranked utility models |
+| Outline | `z-ai/glm-5.2`, `google/gemini-3.1-pro-preview`, `deepseek/deepseek-v4-pro` | Cost-biased source reading; use premium overrides for difficult sources |
+| Content | `z-ai/glm-5.2`, `deepseek/deepseek-v4-pro`, `openai/gpt-5.6-luna` | Cost-biased long-form drafting without automatic Sol/Opus/Gemini Pro spend |
+| Refinement | `z-ai/glm-5.2`, `deepseek/deepseek-v4-pro`, `openai/gpt-5.6-luna` | Lower-cost cleanup and repetition control |
+| Description | `google/gemma-4-31b-it`, `deepseek/deepseek-v4-pro`, `minimax/minimax-m3` | Lower-cost structured feed notes |
 
 OpenRouter metadata and outline generation use the `openrouter:web_fetch` server
 tool with automatic engine selection. OpenRouter fetches and extracts URL content

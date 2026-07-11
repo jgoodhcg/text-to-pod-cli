@@ -66,30 +66,33 @@ const SCRIPT_OBJECTIVE_QUESTIONS = [
 
 const MODEL_POOLS = {
   METADATA: [
+    "google/gemma-4-31b-it",
     "z-ai/glm-5.2",
     "google/gemini-3.5-flash",
-    "google/gemma-4-31b-it"
+    "deepseek/deepseek-v4-pro",
+    "minimax/minimax-m3"
   ],
+  // Keep premium ranked models in the sampler/dashboard, but exclude them from
+  // bulk defaults until cost per episode is back under control.
   SCRIPT_OUTLINE: [
-    "anthropic/claude-sonnet-5",
+    "z-ai/glm-5.2",
     "google/gemini-3.1-pro-preview",
-    "z-ai/glm-5.2"
+    "deepseek/deepseek-v4-pro"
   ],
   SCRIPT_CONTENT: [
-    "anthropic/claude-sonnet-5",
-    "anthropic/claude-opus-4.8",
-    "openai/gpt-5.5",
-    "google/gemini-3.1-pro-preview"
+    "z-ai/glm-5.2",
+    "deepseek/deepseek-v4-pro",
+    "openai/gpt-5.6-luna"
   ],
   SCRIPT_REFINEMENT: [
-    "anthropic/claude-sonnet-5",
-    "google/gemini-3.1-pro-preview",
-    "z-ai/glm-5.2"
+    "z-ai/glm-5.2",
+    "deepseek/deepseek-v4-pro",
+    "openai/gpt-5.6-luna"
   ],
   SCRIPT_DESCRIPTION: [
-    "z-ai/glm-5.2",
-    "google/gemini-3.5-flash",
-    "google/gemma-4-31b-it"
+    "google/gemma-4-31b-it",
+    "deepseek/deepseek-v4-pro",
+    "minimax/minimax-m3"
   ]
 } as const;
 

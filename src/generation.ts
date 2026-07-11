@@ -27,6 +27,7 @@ interface TextGenerationOptions {
 const OPENROUTER_REQUEST_ATTEMPTS = 3;
 const OPENROUTER_RETRY_BASE_MS = 1000;
 const OPENROUTER_TRANSIENT_STATUSES = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
+const OPENROUTER_MAX_COMPLETION_TOKENS = 8192;
 
 class OpenRouterRequestError extends Error {
   status: number;
@@ -190,6 +191,7 @@ async function sendOpenRouterTextRequest(
         { role: 'system', content: options.systemPrompt },
         { role: 'user', content: options.userPrompt }
       ],
+      max_tokens: OPENROUTER_MAX_COMPLETION_TOKENS,
       ...(tools ? { tools } : {}),
       provider: {
         ignore: ['alibaba', 'anthropic', 'google-ai-studio']

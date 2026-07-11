@@ -13,7 +13,7 @@ import {
 import type { ModelProvider, ScriptDialogue } from '../../src/types.js';
 
 const DEFAULT_OUTPUT_DIR = 'test/model-samples';
-const MAX_TEXT_SAMPLE_WORDS = 150;
+const MAX_TEXT_SAMPLE_WORDS = 100;
 const TTS_INSTRUCTIONS = 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.';
 const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
 const STANDARD_SCRIPT_INPUT_TOKENS = 35000;
@@ -24,50 +24,84 @@ const FALLBACK_AUDIO_TEXT = `Okay, so this one is a small but pretty active disc
 
 const TEXT_SAMPLE_OUTLINE = {
   headline: {
-    title: 'A local-first notebook tries to make personal archives searchable without cloud lock-in',
-    source_domain: 'Hacker News',
-    source_type: 'discussion thread'
+    title: 'A no-ECU tractor startup becomes a right-to-repair symbol',
+    source_domain: 'Hacker News linking to a small trade article',
+    source_type: 'discussion thread plus article'
   },
   activity_signals: {
-    comment_count: '86',
+    comment_count: '158',
     activity_level: 'lively',
     thread_depth: 'mixed',
-    comparison_to_typical: 'more active than a routine Show HN post, but not a front-page pile-on'
+    comparison_to_typical: 'lively for a niche equipment story, about median for this podcast project'
   },
   comment_temperature: {
     dominant_sentiment: 'mixed',
-    temperature_summary: 'The useful comments are split between interest in data ownership and worry about long-term maintenance burden.'
+    temperature_summary: 'The thread starts with repairability enthusiasm, then turns into arguments about economics, regulation, and nostalgia.'
   },
   comment_buckets: [
     {
       label: 'endorsement',
-      stance: 'local files and exportable formats make the tool feel trustworthy',
+      stance: 'people like mechanical systems they can diagnose without dealer software',
       share_estimate: 'about half'
     },
     {
       label: 'skepticism',
-      stance: 'people doubt whether sync, search, and backups stay reliable for non-technical users',
+      stance: 'others doubt whether simple machines can stay cheap once production, safety, and support scale up',
       share_estimate: 'about a third'
     }
   ],
   article_triage: {
     worth_reading: true,
     key_claims: [
-      'the tool stores notes as plain files',
-      'semantic search runs locally',
-      'the author frames cloud services as convenience with a portability cost'
+      'the tractors use remanufactured diesel engines and mechanical injection',
+      'the pitch is fewer electronics, lower price, and easier field repair',
+      'the article is thin, but the comments reveal why the idea resonates'
     ]
   },
-  takeaway: 'promising, but the maintenance story matters as much as the feature list'
+  takeaway: 'the product matters less than the hunger for repairable tools'
 };
 
+const BENCHMARK_TEXT_MODELS = [
+  // OpenRouter model-picker candidates for ranking quality against planning cost.
+  // These are sample/evaluation candidates only; production episode defaults live
+  // in CONFIG.DEFAULT_MODEL_POOLS.
+  'mistralai/mistral-large-2512',
+  'moonshotai/kimi-k2.7-code',
+  'minimax/minimax-m3',
+  'qwen/qwen3.7-plus',
+  'deepseek/deepseek-v4-pro',
+  'z-ai/glm-5.2',
+  'google/gemma-4-31b-it',
+  'google/gemini-3.1-pro-preview',
+  'google/gemini-3.5-flash',
+  'openai/gpt-5.5',
+  'anthropic/claude-sonnet-5',
+  'anthropic/claude-haiku-4.5',
+  'anthropic/claude-opus-4.8',
+  'anthropic/claude-fable-5',
+  'openai/gpt-5.6-luna',
+  'openai/gpt-5.6-terra',
+  'openai/gpt-5.6-sol'
+] as const;
+
 const FALLBACK_OPENROUTER_TEXT_PRICING: Record<string, TextPricing> = {
+  'mistralai/mistral-large-2512': { inputPerTokenUsd: 0.0000005, outputPerTokenUsd: 0.0000015 },
+  'moonshotai/kimi-k2.7-code': { inputPerTokenUsd: 0.00000072, outputPerTokenUsd: 0.00000349 },
+  'minimax/minimax-m3': { inputPerTokenUsd: 0.0000003, outputPerTokenUsd: 0.0000012 },
+  'qwen/qwen3.7-plus': { inputPerTokenUsd: 0.00000032, outputPerTokenUsd: 0.00000128 },
+  'deepseek/deepseek-v4-pro': { inputPerTokenUsd: 0.000000435, outputPerTokenUsd: 0.00000087 },
   'anthropic/claude-sonnet-5': { inputPerTokenUsd: 0.000002, outputPerTokenUsd: 0.00001, webSearchUnitUsd: 0.01 },
+  'anthropic/claude-haiku-4.5': { inputPerTokenUsd: 0.000001, outputPerTokenUsd: 0.000005, webSearchUnitUsd: 0.01 },
   'anthropic/claude-opus-4.8': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.000025 },
+  'anthropic/claude-fable-5': { inputPerTokenUsd: 0.00001, outputPerTokenUsd: 0.00005, webSearchUnitUsd: 0.01 },
   'google/gemini-3.1-pro-preview': { inputPerTokenUsd: 0.000002, outputPerTokenUsd: 0.000012 },
   'z-ai/glm-5.2': { inputPerTokenUsd: 0.00000093, outputPerTokenUsd: 0.000003 },
   'google/gemini-3.5-flash': { inputPerTokenUsd: 0.0000015, outputPerTokenUsd: 0.000009 },
-  'google/gemma-4-31b-it': { inputPerTokenUsd: 0.00000012, outputPerTokenUsd: 0.00000035 }
+  'google/gemma-4-31b-it': { inputPerTokenUsd: 0.00000012, outputPerTokenUsd: 0.00000035 },
+  'openai/gpt-5.5': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003, webSearchUnitUsd: 0.01 },
+  'openai/gpt-5.6-luna': { inputPerTokenUsd: 0.000001, outputPerTokenUsd: 0.000006, webSearchUnitUsd: 0.01 },
+  'openai/gpt-5.6-terra': { inputPerTokenUsd: 0.0000025, outputPerTokenUsd: 0.000015, webSearchUnitUsd: 0.01 },
+  'openai/gpt-5.6-sol': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003, webSearchUnitUsd: 0.01 }
 };
 
 const FALLBACK_OPENAI_TEXT_PRICING: Record<string, TextPricing> = {
@@ -517,16 +551,18 @@ function getTextModels(): { model: string; stagePools: string[] }[] {
     }
   }
 
+  for (const model of BENCHMARK_TEXT_MODELS) {
+    const existing = byModel.get(model) ?? new Set<string>();
+    existing.add('benchmark');
+    byModel.set(model, existing);
+  }
+
   return [...byModel.entries()]
     .map(([model, stagePools]) => ({ model, stagePools: [...stagePools].sort() }))
     .sort((a, b) => a.model.localeCompare(b.model));
 }
 
 function resolveTextSampleProvider(defaultProvider: ModelProvider, model: string): ModelProvider {
-  if (model.startsWith('openai/')) {
-    return 'openai';
-  }
-
   return defaultProvider;
 }
 
@@ -535,7 +571,7 @@ function buildTextSampleSystemPrompt(maxWords: number): string {
 
 Write in the project's low-energy browsing voice: casual, precise, and a little tired, like someone scanning a discussion thread and deciding whether it is worth opening the source.
 
-Return one plain-text sample under ${maxWords} words. No title, bullets, JSON, markdown, citations, or prefatory note. Do not mention that this is a test.`;
+Return one plain-text sample of about ${maxWords} words. No title, bullets, JSON, markdown, citations, or prefatory note. Do not mention that this is a test.`;
 }
 
 function buildTextSampleUserPrompt(): string {
@@ -544,10 +580,11 @@ function buildTextSampleUserPrompt(): string {
 ${JSON.stringify(TEXT_SAMPLE_OUTLINE, null, 2)}
 
 The sample should quickly show whether you can:
-- orient around title, platform, and activity level
-- summarize the strongest community split
-- decide whether the original source seems worth reading
-- close with a plain, casual takeaway`;
+- orient around the source, title, platform, and activity level
+- compare comment volume to typical posts and this project's usual episode
+- scan the strongest community split without sounding like a debate recap
+- decide whether the original source is worth reading or the thread is the real signal
+- close with one plain takeaway`;
 }
 
 function normalizeSampleText(value: string): string {
