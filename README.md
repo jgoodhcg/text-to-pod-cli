@@ -130,6 +130,10 @@ retrieval and synthesis; later stages favor ranked quality and cost balance.
 | Refinement | `z-ai/glm-5.2`, `deepseek/deepseek-v4-pro`, `openai/gpt-5.6-luna` | Lower-cost cleanup and repetition control |
 | Description | `google/gemma-4-31b-it`, `deepseek/deepseek-v4-pro`, `minimax/minimax-m3` | Lower-cost structured feed notes |
 
+The model sampler also includes benchmark-only text candidates that do not enter
+automatic episode rotation until deliberately promoted into a stage pool. Recent
+candidates include `moonshotai/kimi-k3` and `meta/muse-spark-1.1`.
+
 OpenRouter metadata and outline generation use the `openrouter:web_fetch` server
 tool with automatic engine selection. OpenRouter fetches and extracts URL content
 server-side; later script passes use the completed outline without web tools.
@@ -147,6 +151,11 @@ are model-specific.
 | `openrouter` | `zyphra/zonos-v0.1-hybrid` + `american_male` | Validated MP3 preset |
 | `openrouter` | `sesame/csm-1b` + `default` | Validated MP3 preset |
 | `openai` | `gpt-4o-mini-tts` + `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer` | Direct OpenAI fallback presets |
+
+The audio sampler also includes benchmark-only presets that do not enter
+automatic episode rotation: `deepgram/aura-2` + `aura-2-arcas-en`,
+`minimax/speech-2.8-hd` + `English_CalmWoman`, and
+`minimax/speech-2.8-turbo` + `English_CalmWoman`.
 
 Other OpenRouter speech models are not in the default MP3 pool yet:
 `x-ai/grok-voice-tts-1.0` and `mistralai/voxtral-mini-tts-2603` were blocked by

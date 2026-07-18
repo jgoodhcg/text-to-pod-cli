@@ -85,3 +85,8 @@ provider flags.
   `en-US-Harper:MAI-Voice-2` accepted; `en-US-Ava`, `en-US-Andrew`,
   `en-US-Brian`, `en-US-Emma`, `en-US-Jenny`, `en-US-Guy`, and `en-US-Davis`
   returned provider 400 errors when suffixed with `:MAI-Voice-2`.
+- Added benchmark-only candidates on 2026-07-17: `moonshotai/kimi-k3`,
+  `meta/muse-spark-1.1`, `deepgram/aura-2` + `aura-2-arcas-en`, and MiniMax
+  `speech-2.8-hd` / `speech-2.8-turbo` + `English_CalmWoman`. Model IDs,
+  pricing, and advertised voice IDs were checked against provider metadata;
+  speech output remains unvalidated until samples are generated.

@@ -1,7 +1,7 @@
 import type { ModelProvider } from './types.js';
 import { resolveProviderModel } from './generation.js';
 
-export const COST_PRICING_SNAPSHOT = 'openrouter-api-2026-07-10-openai-pricing-2026-07-06';
+export const COST_PRICING_SNAPSHOT = 'openrouter-api-2026-07-17-openai-pricing-2026-07-06';
 
 interface TextPricing {
   inputPerTokenUsd: number;
@@ -25,7 +25,9 @@ const OPENROUTER_TEXT_PRICING: Record<string, TextPricing> = {
   'openai/gpt-5.5': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003 },
   'openai/gpt-5.6-luna': { inputPerTokenUsd: 0.000001, outputPerTokenUsd: 0.000006 },
   'openai/gpt-5.6-terra': { inputPerTokenUsd: 0.0000025, outputPerTokenUsd: 0.000015 },
-  'openai/gpt-5.6-sol': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003 }
+  'openai/gpt-5.6-sol': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003 },
+  'moonshotai/kimi-k3': { inputPerTokenUsd: 0.000003, outputPerTokenUsd: 0.000015 },
+  'meta/muse-spark-1.1': { inputPerTokenUsd: 0.00000125, outputPerTokenUsd: 0.00000425 }
 };
 
 const OPENAI_TEXT_PRICING: Record<string, TextPricing> = {
@@ -41,7 +43,10 @@ const OPENROUTER_SPEECH_INPUT_PRICING: Record<string, number> = {
   'canopylabs/orpheus-3b-0.1-ft': 0.000007,
   'zyphra/zonos-v0.1-transformer': 0.000007,
   'zyphra/zonos-v0.1-hybrid': 0.000007,
-  'sesame/csm-1b': 0.000007
+  'sesame/csm-1b': 0.000007,
+  'deepgram/aura-2': 0.00003,
+  'minimax/speech-2.8-hd': 0.0001,
+  'minimax/speech-2.8-turbo': 0.00006
 };
 
 export function estimateTextCostUsd(

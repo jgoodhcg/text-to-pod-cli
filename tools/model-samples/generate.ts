@@ -81,8 +81,19 @@ const BENCHMARK_TEXT_MODELS = [
   'anthropic/claude-fable-5',
   'openai/gpt-5.6-luna',
   'openai/gpt-5.6-terra',
-  'openai/gpt-5.6-sol'
+  'openai/gpt-5.6-sol',
+  'moonshotai/kimi-k3',
+  'meta/muse-spark-1.1'
 ] as const;
+
+const BENCHMARK_AUDIO_PRESETS = {
+  OPENROUTER: [
+    { model: 'deepgram/aura-2', voice: 'aura-2-arcas-en' },
+    { model: 'minimax/speech-2.8-hd', voice: 'English_CalmWoman' },
+    { model: 'minimax/speech-2.8-turbo', voice: 'English_CalmWoman' }
+  ],
+  OPENAI: []
+} as const;
 
 const FALLBACK_OPENROUTER_TEXT_PRICING: Record<string, TextPricing> = {
   'mistralai/mistral-large-2512': { inputPerTokenUsd: 0.0000005, outputPerTokenUsd: 0.0000015 },
@@ -101,7 +112,9 @@ const FALLBACK_OPENROUTER_TEXT_PRICING: Record<string, TextPricing> = {
   'openai/gpt-5.5': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003, webSearchUnitUsd: 0.01 },
   'openai/gpt-5.6-luna': { inputPerTokenUsd: 0.000001, outputPerTokenUsd: 0.000006, webSearchUnitUsd: 0.01 },
   'openai/gpt-5.6-terra': { inputPerTokenUsd: 0.0000025, outputPerTokenUsd: 0.000015, webSearchUnitUsd: 0.01 },
-  'openai/gpt-5.6-sol': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003, webSearchUnitUsd: 0.01 }
+  'openai/gpt-5.6-sol': { inputPerTokenUsd: 0.000005, outputPerTokenUsd: 0.00003, webSearchUnitUsd: 0.01 },
+  'moonshotai/kimi-k3': { inputPerTokenUsd: 0.000003, outputPerTokenUsd: 0.000015 },
+  'meta/muse-spark-1.1': { inputPerTokenUsd: 0.00000125, outputPerTokenUsd: 0.00000425, webSearchUnitUsd: 0.0025 }
 };
 
 const FALLBACK_OPENAI_TEXT_PRICING: Record<string, TextPricing> = {
@@ -114,7 +127,10 @@ const FALLBACK_OPENROUTER_SPEECH_INPUT_PRICING: Record<string, number> = {
   'canopylabs/orpheus-3b-0.1-ft': 0.000007,
   'zyphra/zonos-v0.1-transformer': 0.000007,
   'zyphra/zonos-v0.1-hybrid': 0.000007,
-  'sesame/csm-1b': 0.000007
+  'sesame/csm-1b': 0.000007,
+  'deepgram/aura-2': 0.00003,
+  'minimax/speech-2.8-hd': 0.0001,
+  'minimax/speech-2.8-turbo': 0.00006
 };
 
 interface Options {
@@ -454,7 +470,7 @@ async function generateAudioSamples(options: Options, audioSegments: string[]): 
   const entries: ManifestEntry[] = [];
 
   for (const provider of options.audioProviders) {
-    const presets = CONFIG.DEFAULT_AUDIO_PRESET_POOLS[provider.toUpperCase() as 'OPENROUTER' | 'OPENAI'];
+    const presets = getAudioPresets(provider);
     const providerDir = join(options.outDir, 'audio', provider);
     ensureDir(providerDir);
 
@@ -1094,7 +1110,11 @@ function sumCosts(...costs: Array<number | undefined>): number | undefined {
 }
 
 function getAudioPresets(provider: ModelProvider): Array<{ model: string; voice: string }> {
-  return CONFIG.DEFAULT_AUDIO_PRESET_POOLS[provider.toUpperCase() as 'OPENROUTER' | 'OPENAI'];
+  const key = provider.toUpperCase() as 'OPENROUTER' | 'OPENAI';
+  return [
+    ...CONFIG.DEFAULT_AUDIO_PRESET_POOLS[key],
+    ...BENCHMARK_AUDIO_PRESETS[key]
+  ];
 }
 
 function formatMillionTokenRate(perToken: number): string {
