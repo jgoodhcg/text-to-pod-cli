@@ -9,6 +9,7 @@ goal: "Deliver a reliable CLI that turns URLs into scholarly podcast episodes wi
 Pipeline resilience and content quality improvements for the five-stage script flow.
 
 ## Work Units
+- `episode-feedback-and-model-quality.md`
 - `pipeline-resilience-and-quality.md`
 - `arbitrary-text-input.md`
 - `hn-queue-import.md`
