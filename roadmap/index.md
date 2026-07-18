@@ -14,6 +14,7 @@ Pipeline resilience and content quality improvements for the five-stage script f
 - `hn-queue-import.md`
 - `openrouter-integration.md`
 - `episode-artwork-replicate.md`
+- `episode-inline-images.md`
 - `codebase-cleanup.md`
 - `convert-to-bun.md`
 
