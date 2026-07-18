@@ -67,6 +67,8 @@ Use one policy file for both paired local work and any future autonomous workflo
   - `bun run build`
   - `bun dist/cli.js --help`
   - `bun run dev -- --help`
+  - `bun tools/model-samples/generate.ts --help`
+  - `bun tools/model-samples/dashboard.ts --help`
 
 ### Runtime: Autonomous Workflow
 
@@ -76,6 +78,7 @@ Use one policy file for both paired local work and any future autonomous workflo
 ## Never Run
 
 - `bun run start` or `bun run dev` with real URLs, live API calls, or `--run-stage publish`
+- `bun run samples:models` (or `bun tools/model-samples/generate.ts`) with real API calls — generates billed model review samples
 - `s3cmd *` — uploads to Spaces
 - `ffmpeg *` — mutates audio assets
 - Destructive commands like `rm -rf` or deleting `data/episodes.db` or `resources/episodes/`
@@ -107,6 +110,7 @@ Use one policy file for both paired local work and any future autonomous workflo
 - `src/stages/` — stage implementations for metadata, script, audio, merge, and publish
 - `data/` — SQLite database and runtime state
 - `resources/` — generated episode assets and feed artifacts
+- `tools/model-samples/` — developer-only model review tooling, run directly via bun on the `.ts` sources (compiled `.d.ts`/`.map` siblings are git-ignored; `tsc` output for `src/` lands in the git-ignored `dist/`)
 - `roadmap/` — planning surface and work units
 - `hn-upvoted-page-snippet.js` — browser-console helper for exporting visible HN upvoted pages into URL-file queues
 - `AGENT_BLUEPRINT.md` — shared agent policy

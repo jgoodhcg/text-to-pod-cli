@@ -9,6 +9,11 @@ resources/
 
 dist/
 
+# TypeScript build artifacts emitted next to source
+*.js.map
+*.d.ts
+*.d.ts.map
+
 .secrets.env
 .agent-profile.md
 
