@@ -13,6 +13,7 @@ Pipeline resilience and content quality improvements for the five-stage script f
 - `pipeline-resilience-and-quality.md`
 - `arbitrary-text-input.md`
 - `hn-queue-import.md`
+- `hn-digest-episodes.md`
 - `openrouter-integration.md`
 - `episode-artwork-replicate.md`
 - `episode-inline-images.md`
