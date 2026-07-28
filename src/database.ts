@@ -13,6 +13,7 @@ const { Database } = require('bun:sqlite') as {
 
 export interface EpisodeRow {
   episode_id: string;
+  episode_kind?: 'single' | 'digest';
   original_url?: string;
   normalized_url: string;
   url_hash: string;
@@ -79,6 +80,27 @@ export interface EpisodeRow {
   cost_pricing_snapshot?: string;
 }
 
+export interface EpisodeSourceRow {
+  episode_id: string;
+  original_url: string;
+  normalized_url: string;
+  url_hash: string;
+  position: number;
+  source_title?: string;
+  created_at: string;
+}
+
+export interface DigestEpisodeInput {
+  episode: Omit<EpisodeRow, 'created_at' | 'updated_at'>;
+  sources: Array<{
+    originalUrl: string;
+    normalizedUrl: string;
+    urlHash: string;
+    position: number;
+    title?: string;
+  }>;
+}
+
 export interface EpisodeFailureRow {
   id: number;
   episode_id?: string;
@@ -141,6 +163,7 @@ export class EpisodeRepository {
     const createTableSQL = `
       CREATE TABLE IF NOT EXISTS episodes (
         episode_id TEXT PRIMARY KEY,
+        episode_kind TEXT NOT NULL DEFAULT 'single' CHECK (episode_kind IN ('single', 'digest')),
         original_url TEXT,
         normalized_url TEXT NOT NULL,
         url_hash TEXT NOT NULL UNIQUE,
@@ -208,6 +231,48 @@ export class EpisodeRepository {
     `;
     
     this.db.exec(createTableSQL);
+
+    try {
+      this.db.exec("ALTER TABLE episodes ADD COLUMN episode_kind TEXT NOT NULL DEFAULT 'single' CHECK (episode_kind IN ('single', 'digest'))");
+    } catch (error) {
+      // Column already exists, ignore error.
+    }
+
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS episode_sources (
+        episode_id TEXT NOT NULL,
+        original_url TEXT NOT NULL,
+        normalized_url TEXT NOT NULL,
+        url_hash TEXT NOT NULL UNIQUE,
+        position INTEGER NOT NULL,
+        source_title TEXT,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (episode_id, position),
+        FOREIGN KEY (episode_id) REFERENCES episodes(episode_id)
+      );
+    `);
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_episode_sources_episode ON episode_sources (episode_id, position)');
+    this.db.exec(`
+      INSERT OR IGNORE INTO episode_sources (
+        episode_id,
+        original_url,
+        normalized_url,
+        url_hash,
+        position,
+        source_title,
+        created_at
+      )
+      SELECT
+        episode_id,
+        COALESCE(original_url, normalized_url),
+        normalized_url,
+        url_hash,
+        0,
+        metadata_title,
+        created_at
+      FROM episodes
+      WHERE episode_kind = 'single'
+    `);
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS episode_failures (
@@ -401,13 +466,19 @@ export class EpisodeRepository {
   }
 
   findByUrlHash(urlHash: string): EpisodeRow | undefined {
-    const stmt = this.db.prepare('SELECT * FROM episodes WHERE url_hash = ?');
-    return stmt.get(urlHash) as EpisodeRow | undefined;
+    const stmt = this.db.prepare(`
+      SELECT DISTINCT episodes.*
+      FROM episodes
+      LEFT JOIN episode_sources ON episode_sources.episode_id = episodes.episode_id
+      WHERE episode_sources.url_hash = ? OR episodes.url_hash = ?
+      LIMIT 1
+    `);
+    return (stmt.get(urlHash, urlHash) as EpisodeRow | null) ?? undefined;
   }
 
   findByEpisodeId(episodeId: string): EpisodeRow | undefined {
     const stmt = this.db.prepare('SELECT * FROM episodes WHERE episode_id = ?');
-    return stmt.get(episodeId) as EpisodeRow | undefined;
+    return (stmt.get(episodeId) as EpisodeRow | null) ?? undefined;
   }
 
   listModelSampleEvaluations(kind: 'text' | 'audio'): ModelSampleEvaluationRow[] {
@@ -426,26 +497,117 @@ export class EpisodeRepository {
 
   insertEpisode(episode: Omit<EpisodeRow, 'created_at' | 'updated_at'>): void {
     const now = new Date().toISOString();
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const stmt = this.db.prepare(`
+        INSERT INTO episodes (
+          episode_id, episode_kind, original_url, normalized_url, url_hash, created_at, updated_at,
+          metadata_status, script_status, audio_status, merge_status, publish_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      stmt.run(
+        episode.episode_id,
+        episode.episode_kind ?? 'single',
+        episode.original_url ?? episode.normalized_url,
+        episode.normalized_url,
+        episode.url_hash,
+        now,
+        now,
+        episode.metadata_status,
+        episode.script_status,
+        episode.audio_status,
+        episode.merge_status,
+        episode.publish_status
+      );
+
+      const sourceStmt = this.db.prepare(`
+        INSERT INTO episode_sources (
+          episode_id, original_url, normalized_url, url_hash, position, source_title, created_at
+        ) VALUES (?, ?, ?, ?, 0, ?, ?)
+      `);
+      sourceStmt.run(
+        episode.episode_id,
+        episode.original_url ?? episode.normalized_url,
+        episode.normalized_url,
+        episode.url_hash,
+        episode.metadata_title ?? null,
+        now
+      );
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  insertDigestEpisode(input: DigestEpisodeInput): void {
+    const now = new Date().toISOString();
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const episode = input.episode;
+      const episodeStmt = this.db.prepare(`
+        INSERT INTO episodes (
+          episode_id, episode_kind, original_url, normalized_url, url_hash, created_at, updated_at,
+          metadata_status, metadata_model, metadata_title, metadata_summary, metadata_related_links,
+          script_status, script_model, script_file_path, script_segment_count,
+          script_description_notes,
+          audio_status, merge_status, publish_status
+        ) VALUES (?, 'digest', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      episodeStmt.run(
+        episode.episode_id,
+        episode.original_url ?? episode.normalized_url,
+        episode.normalized_url,
+        episode.url_hash,
+        now,
+        now,
+        episode.metadata_status,
+        episode.metadata_model ?? null,
+        episode.metadata_title ?? null,
+        episode.metadata_summary ?? null,
+        episode.metadata_related_links ?? null,
+        episode.script_status,
+        episode.script_model ?? null,
+        episode.script_file_path ?? null,
+        episode.script_segment_count ?? null,
+        episode.script_description_notes ?? null,
+        episode.audio_status,
+        episode.merge_status,
+        episode.publish_status
+      );
+
+      const sourceStmt = this.db.prepare(`
+        INSERT INTO episode_sources (
+          episode_id, original_url, normalized_url, url_hash, position, source_title, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+      for (const source of input.sources) {
+        sourceStmt.run(
+          episode.episode_id,
+          source.originalUrl,
+          source.normalizedUrl,
+          source.urlHash,
+          source.position,
+          source.title ?? null,
+          now
+        );
+      }
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  listEpisodeSources(episodeId: string): EpisodeSourceRow[] {
     const stmt = this.db.prepare(`
-      INSERT INTO episodes (
-        episode_id, original_url, normalized_url, url_hash, created_at, updated_at,
-        metadata_status, script_status, audio_status, merge_status, publish_status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      SELECT *
+      FROM episode_sources
+      WHERE episode_id = ?
+      ORDER BY position
     `);
-    
-    stmt.run(
-      episode.episode_id,
-      episode.original_url ?? episode.normalized_url,
-      episode.normalized_url,
-      episode.url_hash,
-      now,
-      now,
-      episode.metadata_status,
-      episode.script_status,
-      episode.audio_status,
-      episode.merge_status,
-      episode.publish_status
-    );
+    return stmt.all(episodeId) as EpisodeSourceRow[];
   }
 
   updateStageStatus(episodeId: string, stage: string, status: string, updates: Partial<EpisodeRow> = {}): void {

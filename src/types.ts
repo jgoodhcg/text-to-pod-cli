@@ -47,6 +47,9 @@ export interface Context {
     scriptSystemPrompt?: string;
     scriptPromptTemplate?: string;
     scholarVoice: string;
+    operatorVoice: string;
+    historianVoice: string;
+    narratorVoice: string;
     maxScriptChars: number;
     generationRetries: number;
     introBumper?: string;
@@ -72,6 +75,7 @@ export interface Context {
     chunksDir?: string;
     mergedFile?: string;
     feedFile?: string;
+    voiceConfigFile?: string;
     introBumper?: string;
     outroBumper?: string;
   };

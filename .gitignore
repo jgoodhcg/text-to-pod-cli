@@ -5,6 +5,11 @@ data/
 
 resources/
 
+# Local editorial inputs. Keep episode manifests and scripts out of the
+# reusable publishing-engine repository.
+digests/
+docs/digest-refiner-review.md
+
 .DS_Store
 
 dist/

@@ -139,6 +139,9 @@ export function buildContext(options: any): Context {
       scriptSystemPrompt: options.scriptSystemPrompt,
       scriptPromptTemplate: options.scriptPromptTemplate,
       scholarVoice: audioPreset.voice,
+      operatorVoice: options.operatorVoice || CONFIG.DEFAULT_OPERATOR_VOICE,
+      historianVoice: options.historianVoice || CONFIG.DEFAULT_HISTORIAN_VOICE,
+      narratorVoice: options.narratorVoice || CONFIG.DEFAULT_NARRATOR_VOICE,
       maxScriptChars: parseInt(options.maxScriptChars) || CONFIG.DEFAULT_MAX_SCRIPT_CHARS,
       generationRetries: parseNonNegativeInt(options.generationRetries, CONFIG.DEFAULT_GENERATION_RETRIES),
       introBumper: options.introBumper ?? CONFIG.DEFAULT_INTRO_BUMPER,
@@ -193,6 +196,7 @@ export function buildContext(options: any): Context {
     context.paths.chunksDir = join(episodeDir, 'audio', 'chunks');
     context.paths.mergedFile = join(episodeDir, 'audio', 'episode.mp3');
     context.paths.feedFile = join(episodeDir, 'podcast.xml');
+    context.paths.voiceConfigFile = join(episodeDir, 'voice-config.json');
 
     // Handle existing episode with --force
     if (existing && options.force) {
@@ -230,6 +234,7 @@ export function buildContext(options: any): Context {
     context.paths.chunksDir = join(episodeDir, 'audio', 'chunks');
     context.paths.mergedFile = join(episodeDir, 'audio', 'episode.mp3');
     context.paths.feedFile = join(episodeDir, 'podcast.xml');
+    context.paths.voiceConfigFile = join(episodeDir, 'voice-config.json');
     
     // Add URL to options for stages that need it
     context.options.url = existing.original_url || existing.normalized_url;

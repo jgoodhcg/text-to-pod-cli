@@ -141,6 +141,9 @@ export const CONFIG = {
   // Default voices
   DEFAULT_AUDIO_PRESET_POOLS: AUDIO_PRESET_POOLS,
   DEFAULT_SCHOLAR_VOICE: AUDIO_PRESET_POOLS.OPENROUTER[0].voice,
+  DEFAULT_OPERATOR_VOICE: "fable",
+  DEFAULT_HISTORIAN_VOICE: "echo",
+  DEFAULT_NARRATOR_VOICE: "alloy",
 
   // Public evaluation profile used to anchor analysis
   EVALUATION_PROFILE,
@@ -657,5 +660,8 @@ Important: Respond with a single JSON object only. Do not include prose, heading
   // Persona names
   PERSONAS: {
     SCHOLAR: "SCHOLAR",
+    OPERATOR: "OPERATOR",
+    HISTORIAN: "HISTORIAN",
+    NARRATOR: "NARRATOR",
   } as const,
 };

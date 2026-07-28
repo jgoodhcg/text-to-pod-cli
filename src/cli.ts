@@ -6,6 +6,7 @@ import { CONFIG } from './config.js';
 import { runHnFavoritesBatch } from './hn-favorites.js';
 import { runUrlFileBatch } from './url-file.js';
 import { runPipeline } from './runner.js';
+import { runDigestImport } from './digest.js';
 
 const program = new Command();
 
@@ -19,6 +20,7 @@ program
   .option('--url-file <path>', 'Read newline-delimited URLs from a file and batch-process')
   .option('--hn-favorites <string>', 'Hacker News username or favorites URL to batch-import')
   .option('--hn-favorites-limit <number>', 'Maximum number of favorite thread URLs to process')
+  .option('--digest-manifest <path>', 'Import a validated digest manifest and JSONL script')
   .option('--episode-dir <path>', 'Episode directory path (for resuming)')
   .option('--output-root <path>', 'Output root directory', 'resources/episodes')
   .option('--start-stage <stage>', 'Start from specified stage (metadata, script, audio, merge, publish)')
@@ -38,6 +40,9 @@ program
   .option('--script-system-prompt <path>', 'Path to script system prompt file')
   .option('--script-prompt-template <path>', 'Path to script prompt template file')
   .option('--scholar-voice <voice>', 'TTS voice for scholar (default: provider-specific random pool)')
+  .option('--operator-voice <voice>', 'TTS voice for operator')
+  .option('--historian-voice <voice>', 'TTS voice for historian')
+  .option('--narrator-voice <voice>', 'TTS voice for narrator')
   .option('--generation-retries <number>', 'Retries for malformed/failed generation stages', String(CONFIG.DEFAULT_GENERATION_RETRIES))
   .option('--intro-bumper <path>', 'Path to intro bumper audio (MP3)')
   .option('--outro-bumper <path>', 'Path to outro bumper audio (MP3)')
@@ -59,6 +64,11 @@ program
   .option('--stop-on-error', 'Stop URL-file batch processing after the first failed URL')
   .action(async (options) => {
     try {
+      if (options.digestManifest) {
+        runDigestImport(options);
+        return;
+      }
+
       if (options.urlFile) {
         await runUrlFileBatch(options);
         return;

@@ -1,18 +1,47 @@
 import type { Context, ScriptDialogue } from '../types.js';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { createHash } from 'crypto';
 import { chunkDialogueByCharacters } from '../utils.js';
 import { CONFIG } from '../config.js';
 import { COST_PRICING_SNAPSHOT, estimateSpeechCostUsd, formatUsd } from '../costs.js';
 import { createAudioClient, formatProviderModel, resolveProviderModel } from '../generation.js';
+import {
+  validatePersonaVoiceConfig,
+  type PersonaVoice,
+  type PersonaVoiceConfig
+} from '../script-artifacts.js';
 
-const TTS_INSTRUCTIONS = 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. Natural filler words and reactions. No dramatic intonation or podcast host energy.';
+const BASE_TTS_INSTRUCTIONS = 'Speak casually, like someone thinking out loud while scrolling through their feed. Low energy, slightly tired, not performing for anyone. No dramatic intonation or podcast host energy.';
+const PERSONA_INSTRUCTIONS: Record<string, string> = {
+  [CONFIG.PERSONAS.SCHOLAR]: `${BASE_TTS_INSTRUCTIONS} Measured and reflective, with calm authority.`,
+  [CONFIG.PERSONAS.NARRATOR]: `${BASE_TTS_INSTRUCTIONS} Neutral and concise. Use a soft orientation voice, not an announcer voice.`,
+  [CONFIG.PERSONAS.OPERATOR]: `${BASE_TTS_INSTRUCTIONS} Concrete and practical, with restrained warmth and occasional dry understatement.`,
+  [CONFIG.PERSONAS.HISTORIAN]: `${BASE_TTS_INSTRUCTIONS} Gently reflective and unhurried. Avoid theatrical gravity.`
+};
+
+interface AudioChunkPlan {
+  index: number;
+  persona: string;
+  text: string;
+  textHash: string;
+  charCount: number;
+  filePath: string;
+  provider: PersonaVoice['provider'];
+  model: string;
+  voice: string;
+  instructions: string;
+}
+
+interface AudioChunkManifest {
+  version: 1;
+  chunks: AudioChunkPlan[];
+}
 
 export async function runAudio(context: Context): Promise<void> {
   console.log('[audio] Running audio stage');
   console.log('[audio] Provider:', context.options.audioProvider);
   console.log('[audio] Model:', context.options.ttsModel);
-  console.log('[audio] Scholar voice:', context.options.scholarVoice);
   console.log('[audio] Dry run:', context.options.dryRun);
 
   if (!context.episodeId) {
@@ -54,15 +83,18 @@ export async function runAudio(context: Context): Promise<void> {
 
   const charLimit = Math.min(context.options.maxScriptChars, CONFIG.DEFAULT_MAX_AUDIO_CHARS);
   const chunks = chunkDialogueByCharacters(script, charLimit);
+  const voiceConfig = loadVoiceConfig(context, script);
+  const chunkPlan = buildChunkPlan(context, chunks, voiceConfig);
 
-  console.log('[audio] Chunks to synthesize:', chunks.length);
+  console.log('[audio] Chunks to synthesize:', chunkPlan.length);
   console.log('[audio] Character limit per chunk:', charLimit);
+  for (const [persona, voice] of Object.entries(voiceConfig.personas)) {
+    console.log(`[audio] ${persona}: ${formatProviderModel(voice.provider, voice.model)} / ${voice.voice}`);
+  }
 
   if (context.options.dryRun) {
-    chunks.forEach((chunk, index) => {
-      const persona = chunk[0]?.persona ?? 'UNKNOWN';
-      const combinedChars = chunk.reduce((sum, item) => sum + item.text.length, 0);
-      console.log(`[audio] Dry run: would synthesize chunk ${index + 1} (${persona}, ${combinedChars} chars)`);
+    chunkPlan.forEach(chunk => {
+      console.log(`[audio] Dry run: would synthesize chunk ${chunk.index} (${chunk.persona}, ${chunk.charCount} chars, ${chunk.voice})`);
     });
     return;
   }
@@ -71,87 +103,69 @@ export async function runAudio(context: Context): Promise<void> {
     mkdirSync(context.paths.chunksDir, { recursive: true });
   }
 
-  const openai = createAudioClient(context.options.audioProvider);
-  const chunkMetadata: { index: number; persona: string; charCount: number; filePath: string; text: string }[] = [];
-
-  const voiceForPersona = (persona: string): string => {
-    switch (persona) {
-      case CONFIG.PERSONAS.SCHOLAR:
-        return context.options.scholarVoice;
-      default:
-        throw new Error(`Unknown persona "${persona}" for audio synthesis`);
-    }
-  };
-
-  const formatChunkText = (chunk: ScriptDialogue[]): string =>
-    chunk.map(entry => entry.text).join('\n\n');
+  const manifestPath = join(context.paths.chunksDir, 'manifest.json');
+  const previousManifest = readChunkManifest(manifestPath);
+  const clients = new Map<string, ReturnType<typeof createAudioClient>>();
+  const completedChunks: AudioChunkPlan[] = [];
 
   try {
     context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.IN_PROGRESS);
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      if (!chunk || chunk.length === 0) {
+    for (const chunk of chunkPlan) {
+      const absoluteFilePath = join(context.paths.episodeDir, chunk.filePath);
+      const previous = previousManifest?.chunks[chunk.index - 1];
+      if (previous && sameChunk(previous, chunk) && existsSync(absoluteFilePath)) {
+        console.log(`[audio] Reusing chunk ${chunk.index}/${chunkPlan.length}: ${chunk.persona}, ${chunk.charCount} chars`);
+        completedChunks.push(chunk);
+        writeChunkManifest(manifestPath, completedChunks);
         continue;
       }
 
-      const persona = chunk[0]!.persona;
-      const chunkText = formatChunkText(chunk);
-      const charCount = chunkText.length;
-      const voice = voiceForPersona(persona);
-      const chunkIndex = String(i + 1).padStart(3, '0');
-      const relativeFileName = ['audio', 'chunks', `${chunkIndex}-${persona.toLowerCase()}.mp3`].join('/');
-      const absoluteFilePath = join(context.paths.episodeDir, 'audio', 'chunks', `${chunkIndex}-${persona.toLowerCase()}.mp3`);
-
-      console.log(`[audio] Synthesizing chunk ${i + 1}/${chunks.length}: ${persona}, ${charCount} chars`);
+      console.log(`[audio] Synthesizing chunk ${chunk.index}/${chunkPlan.length}: ${chunk.persona}, ${chunk.charCount} chars`);
+      const clientKey = `${chunk.provider}:${chunk.model}`;
+      let client = clients.get(clientKey);
+      if (!client) {
+        client = createAudioClient(chunk.provider);
+        clients.set(clientKey, client);
+      }
 
       const speechRequest: any = {
-        model: resolveProviderModel(context.options.audioProvider, context.options.ttsModel),
-        voice,
-        input: chunkText,
+        model: resolveProviderModel(chunk.provider, chunk.model),
+        voice: chunk.voice,
+        input: chunk.text,
         response_format: 'mp3'
       };
 
-      if (context.options.audioProvider === 'openrouter') {
+      if (chunk.provider === 'openrouter') {
         speechRequest.provider = {
           options: {
             openai: {
-              instructions: TTS_INSTRUCTIONS
+              instructions: chunk.instructions
             }
           }
         };
       } else {
-        speechRequest.instructions = TTS_INSTRUCTIONS;
+        speechRequest.instructions = chunk.instructions;
       }
 
-      const response = await openai.audio.speech.create(speechRequest);
+      const response = await client.audio.speech.create(speechRequest);
 
       const buffer = Buffer.from(await response.arrayBuffer());
       writeFileSync(absoluteFilePath, buffer);
-
-      chunkMetadata.push({
-        index: i + 1,
-        persona,
-        charCount,
-        filePath: relativeFileName,
-        text: chunkText
-      });
+      completedChunks.push(chunk);
+      writeChunkManifest(manifestPath, completedChunks);
     }
 
-    const audioInputChars = chunkMetadata.reduce((sum, chunk) => sum + chunk.charCount, 0);
-    const estimatedCost = estimateSpeechCostUsd(
-      context.options.audioProvider,
-      context.options.ttsModel,
-      audioInputChars
-    );
+    const audioInputChars = chunkPlan.reduce((sum, chunk) => sum + chunk.charCount, 0);
+    const estimatedCost = estimateChunkPlanCost(chunkPlan);
 
     const updates: any = {
       audio_chunks_dir: context.paths.chunksDir,
-      audio_chunk_count: chunkMetadata.length,
-      audio_voice_scholar: `${context.options.scholarVoice} (${formatProviderModel(context.options.audioProvider, context.options.ttsModel)})`,
+      audio_chunk_count: chunkPlan.length,
       audio_input_chars: audioInputChars,
-      audio_files: JSON.stringify(chunkMetadata.map(chunk => chunk.filePath))
+      audio_files: JSON.stringify(chunkPlan.map(chunk => chunk.filePath))
     };
+    setVoiceTelemetry(updates, voiceConfig);
 
     if (estimatedCost !== undefined) {
       updates.audio_estimated_cost_usd = estimatedCost;
@@ -160,7 +174,7 @@ export async function runAudio(context: Context): Promise<void> {
     context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.COMPLETED, updates);
     context.db.refreshEstimatedTotalCost(context.episodeId, COST_PRICING_SNAPSHOT);
 
-    console.log('[audio] Audio chunks generated:', chunkMetadata.length);
+    console.log('[audio] Audio chunks ready:', chunkPlan.length);
     console.log(`[audio] Usage: input_chars=${audioInputChars} estimated_cost=${formatUsd(estimatedCost)}`);
   } catch (error) {
     context.db.updateStageStatus(context.episodeId, 'audio', CONFIG.STAGE_STATUS.FAILED);
@@ -169,9 +183,131 @@ export async function runAudio(context: Context): Promise<void> {
       stage: 'audio',
       stageOrder: CONFIG.PIPELINE_STAGE_ORDER.AUDIO,
       retryScope: 'stage',
-      model: formatProviderModel(context.options.audioProvider, context.options.ttsModel),
+      model: [...new Set(chunkPlan.map(chunk => formatProviderModel(chunk.provider, chunk.model)))].join(', '),
       error
     });
     throw error;
+  }
+}
+
+function loadVoiceConfig(context: Context, script: ScriptDialogue[]): PersonaVoiceConfig {
+  let config: PersonaVoiceConfig;
+  if (context.paths.voiceConfigFile && existsSync(context.paths.voiceConfigFile)) {
+    config = JSON.parse(readFileSync(context.paths.voiceConfigFile, 'utf8')) as PersonaVoiceConfig;
+  } else {
+    config = {
+      version: 1,
+      personas: {
+        [CONFIG.PERSONAS.SCHOLAR]: buildLegacyVoice(context, context.options.scholarVoice),
+        [CONFIG.PERSONAS.OPERATOR]: buildLegacyVoice(context, context.options.operatorVoice),
+        [CONFIG.PERSONAS.HISTORIAN]: buildLegacyVoice(context, context.options.historianVoice),
+        [CONFIG.PERSONAS.NARRATOR]: buildLegacyVoice(context, context.options.narratorVoice)
+      }
+    };
+  }
+  validatePersonaVoiceConfig(config, script.map(entry => entry.persona));
+  return config;
+}
+
+function buildLegacyVoice(context: Context, voice: string): PersonaVoice {
+  return {
+    provider: context.options.audioProvider,
+    model: context.options.ttsModel,
+    voice
+  };
+}
+
+function buildChunkPlan(
+  context: Context,
+  chunks: ScriptDialogue[][],
+  voiceConfig: PersonaVoiceConfig
+): AudioChunkPlan[] {
+  return chunks.map((chunk, index) => {
+    const persona = chunk[0]?.persona;
+    if (!persona) {
+      throw new Error(`Audio chunk ${index + 1} has no persona`);
+    }
+    const voice = voiceConfig.personas[persona];
+    if (!voice) {
+      throw new Error(`No voice configured for persona "${persona}"`);
+    }
+    const text = chunk.map(entry => entry.text).join('\n\n');
+    const chunkIndex = String(index + 1).padStart(3, '0');
+    return {
+      index: index + 1,
+      persona,
+      text,
+      textHash: createHash('sha256').update(text).digest('hex'),
+      charCount: text.length,
+      filePath: ['audio', 'chunks', `${chunkIndex}-${persona.toLowerCase()}.mp3`].join('/'),
+      provider: voice.provider,
+      model: voice.model,
+      voice: voice.voice,
+      instructions: voice.instructions || PERSONA_INSTRUCTIONS[persona] || BASE_TTS_INSTRUCTIONS
+    };
+  });
+}
+
+function readChunkManifest(path: string): AudioChunkManifest | undefined {
+  if (!existsSync(path)) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as AudioChunkManifest;
+    return parsed.version === 1 && Array.isArray(parsed.chunks) ? parsed : undefined;
+  } catch (error) {
+    console.warn('[audio] Unable to read prior chunk manifest; chunks will be regenerated:', error);
+    return undefined;
+  }
+}
+
+function writeChunkManifest(path: string, chunks: AudioChunkPlan[]): void {
+  const tempPath = `${path}.tmp`;
+  writeFileSync(tempPath, JSON.stringify({ version: 1, chunks }, null, 2));
+  renameSync(tempPath, path);
+}
+
+function sameChunk(a: AudioChunkPlan, b: AudioChunkPlan): boolean {
+  return a.textHash === b.textHash
+    && a.persona === b.persona
+    && a.provider === b.provider
+    && a.model === b.model
+    && a.voice === b.voice
+    && a.instructions === b.instructions
+    && a.filePath === b.filePath;
+}
+
+function estimateChunkPlanCost(chunks: AudioChunkPlan[]): number | undefined {
+  const totals = new Map<string, { provider: PersonaVoice['provider']; model: string; chars: number }>();
+  for (const chunk of chunks) {
+    const key = `${chunk.provider}:${chunk.model}`;
+    const current = totals.get(key) || { provider: chunk.provider, model: chunk.model, chars: 0 };
+    current.chars += chunk.charCount;
+    totals.set(key, current);
+  }
+
+  let totalCost = 0;
+  for (const total of totals.values()) {
+    const cost = estimateSpeechCostUsd(total.provider, total.model, total.chars);
+    if (cost === undefined) {
+      return undefined;
+    }
+    totalCost += cost;
+  }
+  return Math.round(totalCost * 1_000_000) / 1_000_000;
+}
+
+function setVoiceTelemetry(updates: Record<string, unknown>, config: PersonaVoiceConfig): void {
+  const fieldByPersona: Record<string, string> = {
+    [CONFIG.PERSONAS.SCHOLAR]: 'audio_voice_scholar',
+    [CONFIG.PERSONAS.OPERATOR]: 'audio_voice_operator',
+    [CONFIG.PERSONAS.HISTORIAN]: 'audio_voice_historian',
+    [CONFIG.PERSONAS.NARRATOR]: 'audio_voice_narrator'
+  };
+  for (const [persona, voice] of Object.entries(config.personas)) {
+    const field = fieldByPersona[persona];
+    if (field) {
+      updates[field] = `${voice.voice} (${formatProviderModel(voice.provider, voice.model)})`;
+    }
   }
 }

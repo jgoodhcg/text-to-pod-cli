@@ -200,6 +200,7 @@ function buildRssItem(
   const descriptionOptions: any = {
     summary,
     originalUrl: episode.original_url || episode.normalized_url,
+    episodeKind: episode.episode_kind || 'single',
     relatedLinks,
     descriptionNotes,
     models: {
@@ -211,10 +212,10 @@ function buildRssItem(
       script_description: episode.script_description_model ?? null
     },
     voices: {
-      scholar: episode.audio_voice_scholar || 'Scholar voice not set',
-      operator: episode.audio_voice_operator || 'Operator voice not set',
-      historian: episode.audio_voice_historian || 'Historian voice not set',
-      narrator: episode.audio_voice_narrator || 'Narrator voice not set'
+      scholar: episode.audio_voice_scholar,
+      operator: episode.audio_voice_operator,
+      historian: episode.audio_voice_historian,
+      narrator: episode.audio_voice_narrator
     }
   };
   
@@ -304,6 +305,7 @@ function parseRelatedLinks(raw?: string | null): Array<{ label: string; url: str
 function buildHtmlDescription(options: {
   summary: string;
   originalUrl: string;
+  episodeKind: 'single' | 'digest';
   articlePublishedAt?: string;
   relatedLinks: Array<{ label: string; url: string }>;
   models: { 
@@ -314,7 +316,7 @@ function buildHtmlDescription(options: {
     script_refinement?: string | null;
     script_description?: string | null;
   };
-  voices: { scholar: string; operator?: string; historian?: string; narrator?: string };
+  voices: { scholar?: string; operator?: string; historian?: string; narrator?: string };
   descriptionNotes?: string;
 }): string {
   const summarySection = options.summary
@@ -331,13 +333,15 @@ function buildHtmlDescription(options: {
     ? `  <p><strong>Original Publish:</strong> ${escapeXml(options.articlePublishedAt)}</p>`
     : '';
 
-  const sourceSection = [
-    '<div class="episode-source">',
-    '  <h3>Source</h3>',
-    `  <p><a href="${escapeXml(options.originalUrl)}" rel="noopener noreferrer">${escapeXml(options.originalUrl)}</a></p>`,
-    publishedAtLine,
-    '</div>'
-  ].join('\n');
+  const sourceSection = options.episodeKind === 'digest'
+    ? ''
+    : [
+      '<div class="episode-source">',
+      '  <h3>Source</h3>',
+      `  <p><a href="${escapeXml(options.originalUrl)}" rel="noopener noreferrer">${escapeXml(options.originalUrl)}</a></p>`,
+      publishedAtLine,
+      '</div>'
+    ].join('\n');
 
   const modelsSection = [
     '<div class="episode-stack">',
@@ -367,7 +371,7 @@ function buildHtmlDescription(options: {
   }
 
   modelsSection.push(
-    `    <li><strong>Scholar Voice:</strong> ${escapeXml(options.voices.scholar)}</li>`,
+    ...(options.voices.scholar ? [`    <li><strong>Scholar Voice:</strong> ${escapeXml(options.voices.scholar)}</li>`] : []),
     ...(options.voices.operator ? [`    <li><strong>Operator Voice:</strong> ${escapeXml(options.voices.operator)}</li>`] : []),
     ...(options.voices.historian ? [`    <li><strong>Historian Voice:</strong> ${escapeXml(options.voices.historian)}</li>`] : []),
     ...(options.voices.narrator ? [`    <li><strong>Narrator Voice:</strong> ${escapeXml(options.voices.narrator)}</li>`] : []),
@@ -380,7 +384,7 @@ function buildHtmlDescription(options: {
   const linksSection = options.relatedLinks.length
     ? [
       '<div class="episode-links">',
-      '  <h3>Related Links</h3>',
+      `  <h3>${options.episodeKind === 'digest' ? 'Sources and Discussions' : 'Related Links'}</h3>`,
       '  <ul>',
       ...options.relatedLinks.map(link => `    <li><a href="${escapeXml(link.url)}">${escapeXml(link.label)}</a></li>`),
       '  </ul>',
