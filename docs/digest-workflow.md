@@ -24,6 +24,25 @@ The importer refuses a digest when its slug or any source URL already belongs to
 an episode. Once imported, normal URL lookup therefore treats every member source
 as generated.
 
+## Source ownership decision
+
+A normalized source URL belongs to exactly one episode. This is an explicit
+one-owner rule, not merely an implementation limitation:
+
+- A source already covered by a digest cannot also have a standalone episode.
+- Looking up a digest member resolves to the digest that owns it.
+- Using `--force` with that member URL operates on the owning digest; it does not
+  create a new standalone episode.
+- To resume or regenerate the digest deliberately, prefer
+  `--episode-dir DIGEST_EPISODE_ID` so the scope is visible in the command.
+- Removing a source from a digest or moving it to a standalone episode requires
+  an explicit future migration of both the manifest and database membership.
+
+This keeps deduplication unambiguous and ensures one URL cannot silently produce
+multiple feed episodes. Membership currently covers the URLs listed in the
+manifest—normally HN thread URLs—not their linked article URLs unless those are
+also recorded separately.
+
 The episode directory contains:
 
 - `script.authoring.jsonl`: the revision-friendly source script
