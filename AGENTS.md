@@ -1,6 +1,6 @@
 # AGENTS
 
-Follows `AGENT_BLUEPRINT.md` (version: 2026-06-17)
+Follows `AGENT_BLUEPRINT.md` (version: 2026-08-04.1)
 
 ## Project Overview
 
@@ -84,6 +84,8 @@ Use one policy file for both paired local work and any future autonomous workflo
 - Destructive commands like `rm -rf` or deleting `data/episodes.db` or `resources/episodes/`
 
 ## Project-Specific Rules
+
+- `BP-WRITE-04` exemptions: episode scripts and other audience-facing narration.
 
 - Keep diffs minimal; avoid opportunistic refactors or formatting churn.
 - Prefer `rg` for search and `apply_patch` for focused file edits.
