@@ -12,13 +12,13 @@ Pipeline resilience and content quality improvements for the five-stage script f
 - `episode-feedback-and-model-quality.md`
 - `pipeline-resilience-and-quality.md`
 - `arbitrary-text-input.md`
-- `hn-queue-import.md`
+- `archived/hn-queue-import.md`
 - `hn-digest-episodes.md`
-- `openrouter-integration.md`
+- `archived/openrouter-integration.md`
 - `episode-artwork-replicate.md`
 - `episode-inline-images.md`
 - `codebase-cleanup.md`
-- `convert-to-bun.md`
+- `archived/convert-to-bun.md`
 
 ## Quick Ideas
 - (none yet)
